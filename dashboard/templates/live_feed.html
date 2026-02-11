@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Surveillance - Hospital Intelligent Monitor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+
+<body class="live-feed-page">
+    <div class="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-icon">🏥</div>
+                <div class="logo-text">
+                    <h1>MediGuard</h1>
+                    <span>Intelligent Monitor</span>
+                </div>
+            </div>
+
+            <div class="nav-links">
+                <a href="/" class="nav-link">
+                    <span>📊</span> Dashboard
+                </a>
+                <a href="/live_feed" class="nav-link active">
+                    <span>🎥</span> Live Feed
+                </a>
+                <a href="#" class="nav-link">
+                    <span>📝</span> Reports
+                </a>
+                <a href="#" class="nav-link">
+                    <span>⚙️</span> Settings
+                </a>
+            </div>
+
+            <div class="system-status">
+                <div class="status-item">
+                    <div class="status-dot connected"></div>
+                    <span>System Online</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot" id="db-status-dot"></div>
+                    <span id="db-status-text">Database Checking...</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <div class="top-header">
+                <div class="header-title">
+                    <h2>Live Surveillance</h2>
+                    <span class="subtitle">Ward A - General Monitoring</span>
+                </div>
+
+                <div class="header-controls">
+                    <div class="datetime-display" id="datetime">--:--:--</div>
+
+                    <div class="control-group">
+                        <select class="camera-select" id="camera-select" onchange="changeCamera()">
+                            <option value="0">Camera 1 (Main)</option>
+                            <option value="1">Camera 2 (Hallway)</option>
+                        </select>
+                        <button class="btn btn-primary" id="start-btn" onclick="startMonitoring()">
+                            ▶ Start
+                        </button>
+                        <button class="btn btn-danger" id="stop-btn" onclick="stopMonitoring()" disabled>
+                            ⏹ Stop
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="video-full-container">
+                <div class="card video-card full-height">
+                    <div class="card-header">
+                        <h3>Live Feed</h3>
+                        <span class="live-badge">LIVE</span>
+                    </div>
+                    <div class="video-container">
+                        <div class="video-overlay" id="video-overlay">
+                            <div class="overlay-content">
+                                <div class="icon">📹</div>
+                                <h3>System Standby</h3>
+                                <p>Initialize monitoring to view live feed</p>
+                            </div>
+                        </div>
+                        <img id="video-feed" src="" alt="Video Stream">
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+
+</html>

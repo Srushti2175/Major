@@ -61,7 +61,7 @@ def main():
     print("""
 ╔══════════════════════════════════════════════════════════════════════╗
 ║                                                                      ║
-║     🏥 ELDERLY CARE AI DASHBOARD 🏥                                  ║
+║     🏥 ELDERLY CARE AI DASHBOARD 🏥                                 ║
 ║                                                                      ║
 ║     Starting Web Dashboard...                                        ║
 ║                                                                      ║

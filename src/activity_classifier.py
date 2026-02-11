@@ -362,12 +362,18 @@ class ActivityClassifier:
             angle = self._calculate_vertical_angle(left_shoulder, left_hip)
             if angle > 60:  # More horizontal than vertical
                 checks_passed += 1
+            elif angle < 45:
+                # CRITICAL: If torso is vertical, it is almost certainly NOT lying down
+                # Penalize confidence significantly or return False immediately
+                return False, 0.0
             total_checks += 1
         
         if right_shoulder and right_hip:
             angle = self._calculate_vertical_angle(right_shoulder, right_hip)
             if angle > 60:
                 checks_passed += 1
+            elif angle < 45:
+                 return False, 0.0
             total_checks += 1
         
         # Check if head and ankles are at similar Y level
@@ -446,33 +452,41 @@ class ActivityClassifier:
         is_sitting, sitting_conf = self._is_sitting(keypoints)
         is_standing, standing_conf = self._is_standing(keypoints)
         
-        # Determine activity based on confidence scores
+        # Determine activity based on HIGHEST confidence scores
         activity = ActivityType.UNKNOWN
         confidence = 0.0
         
-        # Priority: Lying > Sitting > Standing (based on confidence)
-        if is_lying and lying_conf > 0.4:
-            activity = ActivityType.LYING_DOWN
-            confidence = lying_conf
-        elif is_sitting and sitting_conf > sitting_conf * 0.8:
-            activity = ActivityType.SITTING
-            confidence = sitting_conf
-        elif is_standing and standing_conf > 0.4:
-            # Check if walking (standing + moving)
-            if movement_score > self.walking_movement_threshold:
-                activity = ActivityType.WALKING
+        # Collect all candidates
+        candidates = {}
+        if is_lying: candidates[ActivityType.LYING_DOWN] = lying_conf
+        if is_sitting: candidates[ActivityType.SITTING] = sitting_conf
+        if is_standing: candidates[ActivityType.STANDING] = standing_conf
+        
+        if candidates:
+            # Pick the winner
+            best_activity = max(candidates, key=candidates.get)
+            best_conf = candidates[best_activity]
+            
+            # Refine winning activity
+            if best_activity == ActivityType.STANDING:
+                 if movement_score > self.walking_movement_threshold:
+                    activity = ActivityType.WALKING
+                 else:
+                    activity = ActivityType.STANDING
+                 confidence = best_conf
             else:
-                activity = ActivityType.STANDING
-            confidence = standing_conf
+                activity = best_activity
+                confidence = best_conf
         else:
-            # Default based on highest confidence
-            confidences = {
+            # Fallback if no clear winner (all below 0.5 threshold)
+            # Pick highest raw confidence anyway or default to Unknown
+            raw_scores = {
                 ActivityType.LYING_DOWN: lying_conf,
                 ActivityType.SITTING: sitting_conf,
                 ActivityType.STANDING: standing_conf
             }
-            activity = max(confidences, key=confidences.get)
-            confidence = confidences[activity]
+            activity = max(raw_scores, key=raw_scores.get)
+            confidence = raw_scores[activity]
         
         # Calculate duration in current state
         duration = 0.0

@@ -82,6 +82,103 @@ current_frame = None
 frame_lock = threading.Lock()
 status_lock = threading.Lock()
 
+# Status Aggregator for timed updates
+class StatusAggregator:
+    def __init__(self):
+        self.person_count = 0
+        self.last_person_count_update = 0
+        
+        # Buffers for 3-minute aggregation
+        self.activity_buffer = {}  # {person_id: [activities]}
+        self.emotion_buffer = {}   # {person_id: [emotions]}
+        self.last_stats_update = time.time()
+        self.STATS_INTERVAL = 180  # 3 minutes
+        
+        # Buffers for 1-minute alert aggregation
+        self.alert_buffer = []
+        self.last_alert_check = time.time()
+        self.ALERT_INTERVAL = 60   # 1 minute
+        
+    def update(self, statuses, frame_num):
+        current_time = time.time()
+        
+        # 1. Person Count (Event Driven)
+        new_count = len(statuses)
+        if new_count != self.person_count:
+            self.person_count = new_count
+            self.last_person_count_update = current_time
+            socketio.emit('person_count_update', {
+                'count': new_count,
+                'timestamp': current_time,
+                'frame_num': frame_num
+            })
+            
+        # 2. Buffer Activity & Emotion Data
+        for status in statuses:
+            pid = status.person_id
+            if pid not in self.activity_buffer:
+                self.activity_buffer[pid] = []
+                self.emotion_buffer[pid] = []
+                
+            self.activity_buffer[pid].append(status.activity)
+            if status.emotion:
+                self.emotion_buffer[pid].append(status.emotion)
+                
+        # 3. Check for Stats Update (Every 3 min)
+        if current_time - self.last_stats_update >= self.STATS_INTERVAL:
+            self._emit_stats_summary()
+            self.last_stats_update = current_time
+            
+        # 4. Check for Alerts (Every 1 min)
+        if current_time - self.last_alert_check >= self.ALERT_INTERVAL:
+            self._emit_buffered_alerts()
+            self.last_alert_check = current_time
+            
+    def get_current_summary(self):
+        """Get current summary without clearing buffers (for immediate display)."""
+        summary = []
+        for pid, activities in self.activity_buffer.items():
+            if not activities:
+                continue
+                
+            most_common_activity = max(set(activities), key=activities.count)
+            
+            emotions = self.emotion_buffer.get(pid, [])
+            most_common_emotion = "neutral"
+            if emotions:
+                most_common_emotion = max(set(emotions), key=emotions.count)
+                
+            summary.append({
+                'person_id': pid,
+                'activity': most_common_activity,
+                'emotion': most_common_emotion,
+                'timestamp': time.time()
+            })
+        return summary
+            
+    def _emit_stats_summary(self):
+        """Calculate and emit 3-minute summary."""
+        summary = self.get_current_summary()
+        socketio.emit('stats_update', {'summary': summary})
+        
+        # Clear buffers
+        self.activity_buffer = {}
+        self.emotion_buffer = {}
+        
+    def add_alert(self, alert):
+        """Buffer alert."""
+        self.alert_buffer.append(alert)
+        
+    def _emit_buffered_alerts(self):
+        """Emit buffered alerts."""
+        if self.alert_buffer:
+            # Send all buffered alerts
+            alerts_data = [sanitize_for_json(a.to_dict()) for a in self.alert_buffer]
+            socketio.emit('alert_update', {'alerts': alerts_data})
+            self.alert_buffer = []
+
+aggregator = StatusAggregator()
+
 # In-memory cache (for fast access, MongoDB is the source of truth)
 activity_history = deque(maxlen=100)
 emotion_history = deque(maxlen=100)
@@ -128,16 +225,13 @@ def init_monitor():
 
 
 def handle_alert(alert: Alert):
-    """Handle alert: store to MongoDB and emit via WebSocket."""
+    """Handle alert: buffer in aggregator."""
     global db_service
     
-    # Sanitize alert data for JSON serialization
-    alert_data = sanitize_for_json(alert.to_dict())
+    # Buffer alert in aggregator
+    aggregator.add_alert(alert)
     
-    # Add to in-memory cache
-    alerts_history.append(alert_data)
-    
-    # Store to MongoDB
+    # Store to MongoDB immediately (persistence shouldn't wait)
     if db_service and db_service.enabled:
         try:
             alert_record = AlertRecord(
@@ -151,9 +245,6 @@ def handle_alert(alert: Alert):
             db_service.store_alert(alert_record)
         except Exception as e:
             print(f"⚠️ Failed to store alert to MongoDB: {e}")
-    
-    # Emit via WebSocket
-    socketio.emit('new_alert', alert_data)
 
 
 def store_status_to_db(status, frame_num: int):
@@ -218,59 +309,23 @@ def store_status_to_db(status, frame_num: int):
 
 
 def emit_status_update(statuses, frame_num):
-    """Emit status update to all connected clients and store to MongoDB."""
+    """Feed data into aggregator instead of emitting directly."""
     try:
-        status_data = []
-        for status in statuses:
-            # Convert to dict and sanitize for JSON serialization
-            status_dict = sanitize_for_json(status.to_dict())
-            status_data.append(status_dict)
-            
-            with status_lock:
-                current_statuses[status.person_id] = status_dict
-            
-            # Add to in-memory cache
-            activity_history.append({
-                'timestamp': float(status.timestamp),
-                'person_id': int(status.person_id),
-                'activity': str(status.activity),
-                'confidence': float(status.activity_confidence)
-            })
-            
-            emotion_history.append({
-                'timestamp': float(status.timestamp),
-                'person_id': int(status.person_id),
-                'emotion': str(status.emotion),
-                'confidence': float(status.emotion_confidence),
-                'mood_score': float(status.mood_score)
-            })
-            
-            # Store to MongoDB concurrently (in background thread via queue)
-            store_status_to_db(status, frame_num)
+        aggregator.update(statuses, frame_num)
         
-        # Emit status update via WebSocket - sanitize all data
-        update_data = sanitize_for_json({
-            'frame_num': frame_num,
-            'statuses': status_data,
-            'alert_count': len(alerts_history),
-            'timestamp': time.time()
-        })
-        socketio.emit('status_update', update_data)
+        # Still store to DB concurrently
+        for status in statuses:
+            store_status_to_db(status, frame_num)
+            
     except Exception as e:
-        print(f"Error emitting status: {e}")
+        print(f"Error in aggregator update: {e}")
         import traceback
         traceback.print_exc()
 
 
-def generate_frames(source=0):
-    """Generate video frames with detections from webcam."""
+def monitor_loop(source=0):
+    """Background thread to handle video capture and processing."""
     global current_frame, is_monitoring, video_capture, frame_counter
-    
-    if monitor is None:
-        init_monitor()
-    
-    is_monitoring = True
-    frame_counter = 0
     
     # Use webcam (0 = default laptop camera)
     if isinstance(source, str) and source.isdigit():
@@ -284,18 +339,18 @@ def generate_frames(source=0):
         is_monitoring = False
         return
     
-    # Set camera properties for better performance
+    # Set camera properties
     video_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     video_capture.set(cv2.CAP_PROP_FPS, 30)
-    video_capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce latency
+    video_capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     
     print(f"✅ Camera opened successfully!")
     
     frame_num = 0
     start_time = time.time()
     last_emit_time = 0
-    emit_interval = 0.1  # Emit status updates every 100ms for smooth dashboard updates
+    emit_interval = 0.1
     
     try:
         while is_monitoring:
@@ -308,29 +363,34 @@ def generate_frames(source=0):
             
             # Process frame with AI
             timestamp = start_time + frame_num / 30.0
-            annotated_frame, statuses = monitor.process_frame(frame, timestamp)
             
-            # Update current frame (for other endpoints)
-            with frame_lock:
-                current_frame = annotated_frame.copy()
-            
-            # Emit status updates at regular intervals (concurrent with video)
-            current_time = time.time()
-            if current_time - last_emit_time >= emit_interval:
-                emit_status_update(statuses, frame_num)
-                last_emit_time = current_time
-            
-            # Encode frame for streaming
-            ret, buffer = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
-            if ret:
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+            # Use lock to ensure monitor is accessed safely if needed (though mostly read-only config)
+            if monitor:
+                annotated_frame, statuses = monitor.process_frame(frame, timestamp)
+                
+                # Update global current frame for consumers
+                with frame_lock:
+                    current_frame = annotated_frame.copy()
+                
+                # 1. Store ALL frames to Database (Full Fidelity)
+                for status in statuses:
+                    store_status_to_db(status, frame_num)
+                
+                # 2. Emit status updates to Frontend (Throttled for UI performance)
+                current_time = time.time()
+                if current_time - last_emit_time >= emit_interval:
+                    # Feed aggregator for frontend updates
+                    aggregator.update(statuses, frame_num)
+                    last_emit_time = current_time
             
             frame_num += 1
             frame_counter = frame_num
-    
+            
+            # small sleep to prevent CPU hogging if processing is super fast
+            time.sleep(0.001)
+            
     except Exception as e:
-        print(f"❌ Error in frame generation: {e}")
+        print(f"❌ Error in monitoring loop: {e}")
         import traceback
         traceback.print_exc()
     finally:
@@ -340,26 +400,45 @@ def generate_frames(source=0):
             print("📷 Camera released")
 
 
+def stream_frames():
+    """Generator for video streaming from global frame."""
+    global current_frame
+    
+    while True:
+        with frame_lock:
+            if current_frame is None:
+                encoded_frame = None
+            else:
+                ret, buffer = cv2.imencode('.jpg', current_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                encoded_frame = buffer.tobytes() if ret else None
+        
+        if encoded_frame:
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + encoded_frame + b'\r\n')
+        else:
+            # Yield a blank frame or waiting image if no frame yet
+            pass
+            
+        time.sleep(0.033) # ~30 FPS
+
+
 # Routes
 @app.route('/')
 def index():
     """Main dashboard page."""
     return render_template('index.html')
 
+@app.route('/live_feed')
+def live_feed():
+    """Render the live video feed page."""
+    return render_template('live_feed.html')
+
 
 @app.route('/video_feed')
 def video_feed():
-    """Video streaming route - uses laptop webcam by default."""
-    source = request.args.get('source', CAMERA_SOURCE)
-    try:
-        source = int(source)
-    except ValueError:
-        pass  # Keep as string (file path)
-    
-    print(f"🎥 Starting video feed from source: {source}")
-    
+    """Video streaming route."""
     return Response(
-        generate_frames(source),
+        stream_frames(),
         mimetype='multipart/x-mixed-replace; boundary=frame',
         headers={
             'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -577,11 +656,22 @@ def get_activity_summary():
 
 @app.route('/api/start', methods=['POST'])
 def start_monitoring():
-    """Start monitoring."""
+    """Start monitoring in a background thread."""
     global is_monitoring
+    camera_source = request.args.get('source', CAMERA_SOURCE)
+    
     if not is_monitoring:
+        if monitor is None:
+            init_monitor()
+            
         is_monitoring = True
+        
+        # Start background thread
+        thread = threading.Thread(target=monitor_loop, args=(camera_source,), daemon=True)
+        thread.start()
+        
         return jsonify({'success': True, 'message': 'Monitoring started'})
+        
     return jsonify({'success': False, 'message': 'Already monitoring'})
 
 
@@ -663,6 +753,21 @@ def handle_connect():
         'status': 'Connected to Elderly Care Dashboard',
         'db_connected': db_service.enabled if db_service else False
     })
+    
+    # Send immediate update of current state
+    if aggregator:
+        current_summary = aggregator.get_current_summary()
+        if current_summary:
+            emit('stats_update', {'summary': current_summary})
+        
+        emit('person_count_update', {
+            'count': aggregator.person_count,
+            'timestamp': time.time()
+        })
+        
+    # Send recent alerts
+    if len(alerts_history) > 0:
+        emit('alert_update', {'alerts': list(alerts_history)})
 
 
 @socketio.on('disconnect')
@@ -674,11 +779,23 @@ def handle_disconnect():
 @socketio.on('request_status')
 def handle_status_request():
     """Handle status request from client."""
+    # Send full status update
     emit('status_update', {
         'statuses': list(current_statuses.values()),
         'alert_count': len(alerts_history),
         'db_connected': db_service.enabled if db_service else False
     })
+    
+    # Also send the specific events the dashboard listens to
+    if aggregator:
+        current_summary = aggregator.get_current_summary()
+        if current_summary:
+            emit('stats_update', {'summary': current_summary})
+            
+        emit('person_count_update', {
+            'count': aggregator.person_count,
+            'timestamp': time.time()
+        })
 
 
 def run_dashboard(host='0.0.0.0', port=5000, debug=False):

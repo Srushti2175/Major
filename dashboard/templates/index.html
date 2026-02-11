@@ -1,195 +1,122 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏥 Elderly Care AI Dashboard</title>
+    <title>🏥 Hospital Intelligent Monitor</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
-    <div class="dashboard">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-left">
-                <h1>🏥 Elderly Care AI Monitor</h1>
-                <span class="status-badge" id="connection-status">Connecting...</span>
-                <span class="status-badge" id="db-status">🗄️ DB...</span>
-            </div>
-            <div class="header-right">
-                <span class="datetime" id="datetime"></span>
-                <button class="btn btn-primary" id="start-btn" onclick="startMonitoring()">
-                    ▶ Start
-                </button>
-                <button class="btn btn-danger" id="stop-btn" onclick="stopMonitoring()" disabled>
-                    ⏹ Stop
-                </button>
-            </div>
-        </header>
 
-        <!-- Main Content -->
+<body class="dashboard-page">
+    <div class="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-icon">🏥</div>
+                <div class="logo-text">
+                    <h1>MediGuard</h1>
+                    <span>Intelligent Monitor</span>
+                </div>
+            </div>
+
+            <div class="nav-links">
+                <a href="/" class="nav-link active">
+                    <span>📊</span> Dashboard
+                </a>
+                <a href="/live_feed" class="nav-link">
+                    <span>🎥</span> Live Feed
+                </a>
+                <a href="#" class="nav-link">
+                    <span>📝</span> Reports
+                </a>
+                <a href="#" class="nav-link">
+                    <span>⚙️</span> Settings
+                </a>
+            </div>
+
+            <div class="system-status">
+                <div class="status-item">
+                    <div class="status-dot connected"></div>
+                    <span>System Online</span>
+                </div>
+                <!-- DB Status not on main dashboard usually, but adding for consistency -->
+                <div class="status-item">
+                    <div class="status-dot" id="db-status-dot"></div>
+                    <span id="db-status-text">Database Checking...</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
         <main class="main-content">
-            <!-- Left Panel - Video Feed -->
-            <section class="video-section">
-                <div class="panel">
-                    <div class="panel-header">
-                        <h2>📹 Live Monitoring</h2>
-                        <div class="video-controls">
-                            <select id="camera-select" onchange="changeCamera()">
-                                <option value="0">📷 Laptop Webcam</option>
-                                <option value="1">Camera 1 (External)</option>
-                                <option value="2">Camera 2 (External)</option>
-                            </select>
-                            <span class="live-indicator" id="live-indicator">● LIVE</span>
-                        </div>
-                    </div>
-                    <div class="video-container">
-                        <img id="video-feed" src="" alt="Video Feed" />
-                        <div class="video-overlay" id="video-overlay">
-                            <span>Click Start to begin monitoring</span>
-                        </div>
-                    </div>
-                    <div class="video-stats">
-                        <div class="stat">
-                            <span class="stat-label">Persons Detected</span>
-                            <span class="stat-value" id="person-count">0</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-label">Frame</span>
-                            <span class="stat-value" id="frame-num">0</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-label">Total Alerts</span>
-                            <span class="stat-value alert-count" id="alert-count">0</span>
-                        </div>
-                    </div>
+            <div class="top-header">
+                <div class="header-title">
+                    <h2>Dashboard Overview</h2>
+                    <span class="subtitle">Ward A - General Status</span>
                 </div>
-            </section>
 
-            <!-- Right Panel - Status & Alerts -->
-            <section class="status-section">
-                <!-- Person Status Cards -->
-                <div class="panel">
-                    <div class="panel-header">
-                        <h2>👤 Person Status</h2>
+                <div class="header-controls">
+                    <div class="datetime-display" id="datetime">--:--:--</div>
+                </div>
+            </div>
+
+            <!-- Dashboard Grid (No Video) - Layout will be handled by CSS -->
+            <div class="dashboard-metrics-grid">
+
+                <!-- Card 1: Ward Status -->
+                <div class="card metric-card">
+                    <div class="card-header">
+                        <h3>Ward Status (3m Update)</h3>
+                        <span class="refresh-badge" id="last-update-activity">Waiting...</span>
                     </div>
-                    <div class="person-cards" id="person-cards">
-                        <div class="empty-state">
-                            <span>No persons detected</span>
+                    <div class="status-metrics">
+                        <div class="metric-box">
+                            <span class="metric-label">Dominant Activity</span>
+                            <span class="metric-value" id="dominant-activity">--</span>
+                            <span class="metric-sub">Most frequent state</span>
+                        </div>
+                        <div class="metric-box">
+                            <span class="metric-label">Ward Mood</span>
+                            <span class="metric-value emotion" id="dominant-emotion">--</span>
+                            <span class="metric-sub" id="last-update-emotion">Analyzing...</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Emotion History Panel -->
-                <div class="panel emotion-history-panel">
-                    <div class="panel-header">
-                        <h2>😊 Emotion History</h2>
-                        <button class="btn btn-small" onclick="clearEmotionHistory()">Clear</button>
-                    </div>
-                    <div class="emotion-history-list" id="emotion-history-list">
-                        <div class="empty-state">
-                            <span>No emotions detected yet</span>
+                <!-- Card 2: Occupancy -->
+                <div class="card metric-card">
+                    <div class="card-header">
+                        <h3>Current Occupancy</h3>
+                        <div class="current-count">
+                            <span class="count-value" id="person-count">0</span>
+                            <span class="count-label">Persons</span>
                         </div>
+                    </div>
+                    <div class="log-container" id="occupancy-log">
+                        <div class="empty-state">No recent changes</div>
+                        <!-- Log items will appear here -->
                     </div>
                 </div>
 
-                <!-- Alerts Panel -->
-                <div class="panel alerts-panel">
-                    <div class="panel-header">
-                        <h2>🚨 Alerts</h2>
-                        <button class="btn btn-small" onclick="clearAlerts()">Clear All</button>
+                <!-- Card 3: Alert History (Full Width) -->
+                <div class="card full-width-log-card">
+                    <div class="card-header">
+                        <h3>Alert History (1m Update)</h3>
+                        <button class="btn-text" onclick="clearAlerts()">Clear History</button>
                     </div>
-                    <div class="alerts-list" id="alerts-list">
-                        <div class="empty-state">
-                            <span>No alerts</span>
-                        </div>
+                    <div class="log-container large-log" id="alerts-log">
+                        <div class="empty-state">No active alerts</div>
+                        <!-- Alerts will appear here -->
                     </div>
                 </div>
-            </section>
+            </div>
         </main>
-
-        <!-- Bottom Section - Charts -->
-        <section class="charts-section">
-            <!-- Activity Chart -->
-            <div class="panel chart-panel">
-                <div class="panel-header">
-                    <h2>📊 Activity Timeline</h2>
-                </div>
-                <div class="chart-container">
-                    <canvas id="activity-chart"></canvas>
-                </div>
-            </div>
-
-            <!-- Emotion Chart -->
-            <div class="panel chart-panel">
-                <div class="panel-header">
-                    <h2>😊 Emotion Analysis</h2>
-                </div>
-                <div class="chart-container">
-                    <canvas id="emotion-chart"></canvas>
-                </div>
-            </div>
-
-            <!-- Movement Score Chart -->
-            <div class="panel chart-panel">
-                <div class="panel-header">
-                    <h2>🏃 Movement Score</h2>
-                </div>
-                <div class="chart-container">
-                    <canvas id="movement-chart"></canvas>
-                </div>
-            </div>
-        </section>
-
-        <!-- Summary Stats -->
-        <section class="summary-section">
-            <div class="summary-card">
-                <div class="summary-icon standing">🧍</div>
-                <div class="summary-info">
-                    <span class="summary-label">Standing</span>
-                    <span class="summary-value" id="standing-count">0</span>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-icon sitting">🪑</div>
-                <div class="summary-info">
-                    <span class="summary-label">Sitting</span>
-                    <span class="summary-value" id="sitting-count">0</span>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-icon walking">🚶</div>
-                <div class="summary-info">
-                    <span class="summary-label">Walking</span>
-                    <span class="summary-value" id="walking-count">0</span>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-icon lying">🛏️</div>
-                <div class="summary-info">
-                    <span class="summary-label">Lying</span>
-                    <span class="summary-value" id="lying-count">0</span>
-                </div>
-            </div>
-            <div class="summary-card warning">
-                <div class="summary-icon inactive">⚠️</div>
-                <div class="summary-info">
-                    <span class="summary-label">Inactive</span>
-                    <span class="summary-value" id="inactive-count">0</span>
-                </div>
-            </div>
-            <div class="summary-card danger">
-                <div class="summary-icon fall">🚨</div>
-                <div class="summary-info">
-                    <span class="summary-label">Falls</span>
-                    <span class="summary-value" id="fall-count">0</span>
-                </div>
-            </div>
-        </section>
     </div>
 
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 </body>
-</html>
 
+</html>
