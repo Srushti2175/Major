@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏥 Elderly Care AI Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-shell">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <span class="sidebar-logo-mark">EC</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a class="sidebar-item link active" href="{{ url_for('index') }}">
+                    <span class="sidebar-icon">🏠</span>
+                    <span class="sidebar-label">Overview</span>
+                </a>
+                <a class="sidebar-item link" href="{{ url_for('video_dashboard') }}">
+                    <span class="sidebar-icon">🎥</span>
+                    <span class="sidebar-label">Video</span>
+                </a>
+                <a class="sidebar-item link" href="{{ url_for('audio_dashboard') }}">
+                    <span class="sidebar-icon">🎙️</span>
+                    <span class="sidebar-label">Audio</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Unified Dashboard Area -->
+        <div class="dashboard">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1>🏥 Elderly Care AI Monitor</h1>
+                <span class="status-badge" id="connection-status">Connecting...</span>
+                <span class="status-badge" id="db-status">🗄️ DB...</span>
+            </div>
+            <div class="header-right">
+                <span class="datetime" id="datetime"></span>
+                <button class="btn btn-primary" id="start-btn" onclick="startMonitoring()">
+                    ▶ Start
+                </button>
+                <button class="btn btn-danger" id="stop-btn" onclick="stopMonitoring()" disabled>
+                    ⏹ Stop
+                </button>
+            </div>
+        </header>
+
+        <!-- Hero / Key Benefits Strip -->
+        <section class="feature-strip">
+            <div class="feature-card">
+                <div class="feature-icon cam">📹</div>
+                <div class="feature-text">
+                    <h3>Fall Detection</h3>
+                    <p>AI cameras continuously watch for dangerous slips, trips, and falls so you don’t have to.</p>
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon inactive">🧓</div>
+                <div class="feature-text">
+                    <h3>Inactivity Monitoring</h3>
+                    <p>Smart alerts when residents remain unusually still, helping you intervene early.</p>
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon alert">⚡</div>
+                <div class="feature-text">
+                    <h3>Emergency Alerts</h3>
+                    <p>Instant, high-priority notifications sent to caregivers the moment something is wrong.</p>
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon agent">💬</div>
+                <div class="feature-text">
+                    <h3>Conversational Agent</h3>
+                    <p>AI voice-style updates that speak clearly to staff and family about what’s happening.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Diagram-style overview: Video monitor + Audio monitor feeding Dashboard -->
+        <section class="monitor-flow" id="unified-dashboard-section">
+            <div class="monitor-flow-row">
+                <div class="monitor-box video">
+                    <h3>🎥 Video Monitor</h3>
+                    <ul>
+                        <li>Activity detection</li>
+                        <li>Facial / emotion detection</li>
+                        <li>Number of persons in frame</li>
+                    </ul>
+                </div>
+                <div class="monitor-box audio" id="audio-monitor-section">
+                    <h3>🎙️ Audio Monitor</h3>
+                    <ul>
+                        <li>Voice emotion detection</li>
+                        <li>Keywords for alerts (e.g. “help”, “pain”)</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="monitor-flow-arrow-row">
+                <div class="flow-arrow">⬇</div>
+                <div class="flow-arrow">⬇</div>
+            </div>
+            <div class="monitor-dashboard-box">
+                <h3>📊 Unified Dashboard</h3>
+                <ul>
+                    <li>Activity & expressions updated every 3 minutes</li>
+                    <li>Instant alerts when risk is detected</li>
+                    <li>High-level reminders for caregivers</li>
+                </ul>
+                <div class="dashboard-reminder">
+                    <span id="next-summary-update-label">Next summary refresh in:</span>
+                    <span class="reminder-time" id="next-summary-countdown">--:--</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Left Panel - Video Feed -->
+            <section class="video-section" id="video-monitor-section">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>📹 Live Monitoring</h2>
+                        <div class="video-controls">
+                            <select id="camera-select" onchange="changeCamera()">
+                                <option value="0">📷 Laptop Webcam</option>
+                                <option value="1">Camera 1 (External)</option>
+                                <option value="2">Camera 2 (External)</option>
+                            </select>
+                            <span class="live-indicator" id="live-indicator">● LIVE</span>
+                        </div>
+                    </div>
+                    <div class="video-container">
+                        <img id="video-feed" src="" alt="Video Feed" />
+                        <div class="video-overlay" id="video-overlay">
+                            <span>Click Start to begin monitoring</span>
+                        </div>
+                        <!-- Video HUD Overlay -->
+                        <div class="video-hud">
+                            <div class="video-hud-top">
+                                <div class="video-chip">
+                                    <span class="chip-label">Persons</span>
+                                    <span class="chip-value" id="video-person-count">0</span>
+                                </div>
+                                <div class="video-chip">
+                                    <span class="chip-label">Alerts</span>
+                                    <span class="chip-value" id="video-alert-count">0</span>
+                                </div>
+                                <div class="video-chip">
+                                    <span class="chip-label">Activity</span>
+                                    <span class="chip-value" id="video-main-activity">Idle</span>
+                                </div>
+                            </div>
+                            <div class="video-hud-bottom">
+                                <div class="video-status-pill" id="video-main-emotion-pill">
+                                    <span class="pill-label">Emotion</span>
+                                    <span class="pill-value" id="video-main-emotion">—</span>
+                                </div>
+                                <div class="video-status-pill danger" id="video-fall-status-pill">
+                                    <span class="pill-label">Fall Status</span>
+                                    <span class="pill-value" id="video-fall-status">Normal</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="video-stats">
+                        <div class="stat">
+                            <span class="stat-label">Persons Detected</span>
+                            <span class="stat-value" id="person-count">0</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Frame</span>
+                            <span class="stat-value" id="frame-num">0</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Total Alerts</span>
+                            <span class="stat-value alert-count" id="alert-count">0</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel - Status & Alerts -->
+            <section class="status-section">
+                <!-- Person Status Cards -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>👤 Person Status</h2>
+                    </div>
+                    <div class="person-cards" id="person-cards">
+                        <div class="empty-state">
+                            <span>No persons detected</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Emotion History Panel -->
+                <div class="panel emotion-history-panel">
+                    <div class="panel-header">
+                        <h2>😊 Emotion History</h2>
+                        <button class="btn btn-small" onclick="clearEmotionHistory()">Clear</button>
+                    </div>
+                    <div class="emotion-history-list" id="emotion-history-list">
+                        <div class="empty-state">
+                            <span>No emotions detected yet</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alerts Panel -->
+                <div class="panel alerts-panel">
+                    <div class="panel-header">
+                        <h2>🚨 Alerts</h2>
+                        <button class="btn btn-small" onclick="clearAlerts()">Clear All</button>
+                    </div>
+                    <div class="alerts-list" id="alerts-list">
+                        <div class="empty-state">
+                            <span>No alerts</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Section - Charts -->
+        <section class="charts-section">
+            <!-- Activity Chart -->
+            <div class="panel chart-panel">
+                <div class="panel-header">
+                    <h2>📊 Activity Timeline</h2>
+                </div>
+                <div class="chart-container">
+                    <canvas id="activity-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Emotion Chart -->
+            <div class="panel chart-panel">
+                <div class="panel-header">
+                    <h2>😊 Emotion Analysis</h2>
+                </div>
+                <div class="chart-container">
+                    <canvas id="emotion-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Movement Score Chart -->
+            <div class="panel chart-panel">
+                <div class="panel-header">
+                    <h2>🏃 Movement Score</h2>
+                </div>
+                <div class="chart-container">
+                    <canvas id="movement-chart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Summary Stats -->
+        <section class="summary-section">
+            <div class="summary-card">
+                <div class="summary-icon standing">🧍</div>
+                <div class="summary-info">
+                    <span class="summary-label">Standing</span>
+                    <span class="summary-value" id="standing-count">0</span>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon sitting">🪑</div>
+                <div class="summary-info">
+                    <span class="summary-label">Sitting</span>
+                    <span class="summary-value" id="sitting-count">0</span>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon walking">🚶</div>
+                <div class="summary-info">
+                    <span class="summary-label">Walking</span>
+                    <span class="summary-value" id="walking-count">0</span>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon lying">🛏️</div>
+                <div class="summary-info">
+                    <span class="summary-label">Lying</span>
+                    <span class="summary-value" id="lying-count">0</span>
+                </div>
+            </div>
+            <div class="summary-card warning">
+                <div class="summary-icon inactive">⚠️</div>
+                <div class="summary-info">
+                    <span class="summary-label">Inactive</span>
+                    <span class="summary-value" id="inactive-count">0</span>
+                </div>
+            </div>
+            <div class="summary-card danger">
+                <div class="summary-icon fall">🚨</div>
+                <div class="summary-info">
+                    <span class="summary-label">Falls</span>
+                    <span class="summary-value" id="fall-count">0</span>
+                </div>
+            </div>
+        </section>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
+

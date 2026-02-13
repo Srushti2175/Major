@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏥 Elderly Care – Video Insights</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <span class="sidebar-logo-mark">EC</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a class="sidebar-item link" href="{{ url_for('index') }}">
+                    <span class="sidebar-icon">🏠</span>
+                    <span class="sidebar-label">Overview</span>
+                </a>
+                <a class="sidebar-item link active" href="{{ url_for('video_dashboard') }}">
+                    <span class="sidebar-icon">🎥</span>
+                    <span class="sidebar-label">Video</span>
+                </a>
+                <a class="sidebar-item link" href="{{ url_for('audio_dashboard') }}">
+                    <span class="sidebar-icon">🎙️</span>
+                    <span class="sidebar-label">Audio</span>
+                </a>
+            </nav>
+        </aside>
+
+        <div class="dashboard">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1>🎥 Video Monitor</h1>
+                <span class="status-badge" id="connection-status">Connecting...</span>
+                <span class="status-badge" id="db-status">🗄️ DB...</span>
+            </div>
+            <div class="header-right">
+                <span class="datetime" id="datetime"></span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Left: Large Video View -->
+            <section class="video-section">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>📹 Live Video & Key Status</h2>
+                        <div class="video-controls">
+                            <select id="camera-select" onchange="changeCamera()">
+                                <option value="0">📷 Laptop Webcam</option>
+                                <option value="1">Camera 1 (External)</option>
+                                <option value="2">Camera 2 (External)</option>
+                            </select>
+                            <span class="live-indicator" id="live-indicator">● LIVE</span>
+                        </div>
+                    </div>
+                    <div class="video-container">
+                        <img id="video-feed" src="" alt="Video Feed" />
+                        <div class="video-overlay" id="video-overlay">
+                            <span>Click Start to begin monitoring</span>
+                        </div>
+                        <!-- HUD reused from main dashboard style -->
+                        <div class="video-hud">
+                            <div class="video-hud-top">
+                                <div class="video-chip">
+                                    <span class="chip-label">Persons</span>
+                                    <span class="chip-value" id="video-person-count">0</span>
+                                </div>
+                                <div class="video-chip">
+                                    <span class="chip-label">Alerts</span>
+                                    <span class="chip-value" id="video-alert-count">0</span>
+                                </div>
+                                <div class="video-chip">
+                                    <span class="chip-label">Activity</span>
+                                    <span class="chip-value" id="video-main-activity">Idle</span>
+                                </div>
+                            </div>
+                            <div class="video-hud-bottom">
+                                <div class="video-status-pill" id="video-main-emotion-pill">
+                                    <span class="pill-label">Emotion</span>
+                                    <span class="pill-value" id="video-main-emotion">—</span>
+                                </div>
+                                <div class="video-status-pill danger" id="video-fall-status-pill">
+                                    <span class="pill-label">Fall Status</span>
+                                    <span class="pill-value" id="video-fall-status">Normal</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="video-stats">
+                        <div class="stat">
+                            <span class="stat-label">Persons Detected</span>
+                            <span class="stat-value" id="person-count">0</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Frame</span>
+                            <span class="stat-value" id="frame-num">0</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Total Alerts</span>
+                            <span class="stat-value alert-count" id="alert-count">0</span>
+                        </div>
+                    </div>
+                    <div style="padding: 12px 16px; display: flex; gap: 8px; justify-content: flex-end;">
+                        <button class="btn btn-primary" id="start-btn" onclick="startMonitoring()">▶ Start</button>
+                        <button class="btn btn-danger" id="stop-btn" onclick="stopMonitoring()" disabled>⏹ Stop</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right: Captured Video Information -->
+            <section class="status-section">
+                <!-- Movement Timeline Chart -->
+                <div class="panel chart-panel">
+                    <div class="panel-header">
+                        <h2>🏃 Movement Timeline</h2>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="movement-history-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Captured Events List -->
+                <div class="panel alerts-panel">
+                    <div class="panel-header">
+                        <h2>🎞️ Captured Events</h2>
+                    </div>
+                    <div class="alerts-list" id="captured-events-list">
+                        <div class="empty-state">
+                            <span>No captured events yet</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/video_dashboard.js') }}"></script>
+</body>
+</html>
+

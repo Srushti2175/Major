@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎙️ Elderly Care – Audio Monitor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-shell">
+        <!-- Sidebar (same navigation as main) -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <span class="sidebar-logo-mark">EC</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a class="sidebar-item link" href="{{ url_for('index') }}">
+                    <span class="sidebar-icon">🏠</span>
+                    <span class="sidebar-label">Overview</span>
+                </a>
+                <a class="sidebar-item link" href="{{ url_for('video_dashboard') }}">
+                    <span class="sidebar-icon">🎥</span>
+                    <span class="sidebar-label">Video</span>
+                </a>
+                <a class="sidebar-item link active" href="{{ url_for('audio_dashboard') }}">
+                    <span class="sidebar-icon">🎙️</span>
+                    <span class="sidebar-label">Audio</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Audio-only dashboard -->
+        <div class="dashboard">
+            <header class="header">
+                <div class="header-left">
+                    <h1>🎙️ Audio Monitor</h1>
+                    <span class="status-badge" id="audio-status-badge">Listening...</span>
+                </div>
+                <div class="header-right">
+                    <span class="datetime" id="datetime"></span>
+                </div>
+            </header>
+
+            <main class="main-content">
+                <section class="video-section">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2>Voice Emotion & Keywords</h2>
+                        </div>
+                        <div class="audio-main-grid">
+                            <div class="audio-card emotion">
+                                <h3>Current Emotion</h3>
+                                <div class="audio-emotion-value" id="audio-emotion">--</div>
+                                <div class="audio-emotion-confidence" id="audio-emotion-confidence">--%</div>
+                            </div>
+                            <div class="audio-card keywords">
+                                <h3>Detected Keywords</h3>
+                                <ul class="audio-keyword-list" id="audio-keywords">
+                                    <li>No keywords yet</li>
+                                </ul>
+                            </div>
+                            <div class="audio-card alert">
+                                <h3>Alert Level</h3>
+                                <div class="audio-alert-level" id="audio-alert-level">Normal</div>
+                                <p class="audio-alert-note">Alerts rise when distress or emergency words are heard.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="status-section">
+                    <div class="panel alerts-panel">
+                        <div class="panel-header">
+                            <h2>Recent Audio Events</h2>
+                        </div>
+                        <div class="alerts-list" id="audio-events-list">
+                            <div class="empty-state">
+                                <span>No audio events yet</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/audio_dashboard.js') }}"></script>
+</body>
+</html>
+
