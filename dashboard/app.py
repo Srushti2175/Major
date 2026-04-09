@@ -346,6 +346,12 @@ def generate_frames(source=0):
 
 # Routes
 @app.route('/')
+def home():
+    """Informational landing page."""
+    return render_template('home.html')
+
+
+@app.route('/dashboard')
 def index():
     """Main dashboard page."""
     return render_template('index.html')

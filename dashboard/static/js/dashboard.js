@@ -205,7 +205,8 @@ function startMonitoring() {
     // Update UI
     document.getElementById('start-btn').disabled = true;
     document.getElementById('stop-btn').disabled = false;
-    document.getElementById('video-overlay').classList.add('hidden');
+    const videoOverlay = document.getElementById('video-overlay');
+    if (videoOverlay) videoOverlay.classList.add('hidden');
     
     // Show live indicator
     const liveIndicator = document.getElementById('live-indicator');
@@ -236,7 +237,8 @@ function stopMonitoring() {
     // Update UI
     document.getElementById('start-btn').disabled = false;
     document.getElementById('stop-btn').disabled = true;
-    document.getElementById('video-overlay').classList.remove('hidden');
+    const videoOverlay = document.getElementById('video-overlay');
+    if (videoOverlay) videoOverlay.classList.remove('hidden');
     
     // Hide live indicator
     const liveIndicator = document.getElementById('live-indicator');
@@ -419,22 +421,40 @@ function renderEmotionHistory() {
         return;
     }
     
-    container.innerHTML = emotionHistoryList.map(entry => {
+    let tableHTML = `
+        <table class="emotion-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+            <thead>
+                <tr style="text-align: left; border-bottom: 2px solid #00b7b5; color: #005461;">
+                    <th style="padding: 8px;">Time</th>
+                    <th style="padding: 8px;">ID</th>
+                    <th style="padding: 8px;">Emotion</th>
+                    <th style="padding: 8px;">Confidence</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    tableHTML += emotionHistoryList.map(entry => {
         const time = new Date(entry.timestamp * 1000).toLocaleTimeString();
         const emotionIcon = getEmotionIcon(entry.emotion);
         const emotionClass = getEmotionClass(entry.emotion);
         const confidencePercent = Math.round(entry.confidence * 100);
         
         return `
-            <div class="emotion-history-item ${emotionClass}">
-                <div class="emotion-icon">${emotionIcon}</div>
-                <div class="emotion-content">
-                    <div class="emotion-label">${entry.emotion}</div>
-                    <div class="emotion-meta">Person ${entry.personId} • ${confidencePercent}% • ${time}</div>
-                </div>
-            </div>
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 8px; color: #5a9ea8;">${time}</td>
+                <td style="padding: 8px; font-weight: bold; color: #005461;">${entry.personId}</td>
+                <td style="padding: 8px;" class="${emotionClass}">
+                    <span style="margin-right: 5px;">${emotionIcon}</span>
+                    <span style="text-transform: capitalize;">${entry.emotion}</span>
+                </td>
+                <td style="padding: 8px;">${confidencePercent}%</td>
+            </tr>
         `;
     }).join('');
+    
+    tableHTML += `</tbody></table>`;
+    container.innerHTML = tableHTML;
 }
 
 /**
@@ -493,49 +513,51 @@ function updatePersonCards(statuses) {
         return;
     }
     
-    container.innerHTML = statuses.map(status => {
+    let tableHTML = `
+        <table class="person-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+            <thead>
+                <tr style="text-align: left; border-bottom: 2px solid #00b7b5; color: #005461;">
+                    <th style="padding: 8px;">ID</th>
+                    <th style="padding: 8px;">Activity</th>
+                    <th style="padding: 8px;">Emotion</th>
+                    <th style="padding: 8px;">Move Score</th>
+                    <th style="padding: 8px;">Duration</th>
+                    <th style="padding: 8px;">Fall Status</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    tableHTML += statuses.map(status => {
         const activity = status.activity?.type || status.activity || 'unknown';
         const emotion = status.emotion?.type || status.emotion || 'unknown';
         const fallDetected = status.fall_detection?.fall_detected || false;
         const isDistressed = status.emotion?.is_distressed || false;
         
-        let cardClass = 'person-card';
-        if (fallDetected) cardClass += ' fall-detected';
-        else if (isDistressed) cardClass += ' distressed';
-        
         const emotionClass = getEmotionClass(emotion);
         const movementScore = status.activity?.movement_score || 0;
         const duration = status.activity?.duration_seconds || 0;
         
+        let rowStyle = "border-bottom: 1px solid #eee;";
+        if (fallDetected) rowStyle += " background-color: rgba(220, 38, 38, 0.1);";
+        else if (isDistressed) rowStyle += " background-color: rgba(217, 119, 6, 0.1);";
+
         return `
-            <div class="${cardClass}">
-                <div class="person-header">
-                    <span class="person-id">👤 Person ${status.person_id}</span>
-                    <span class="activity-badge ${activity}">${activity.replace('_', ' ')}</span>
-                </div>
-                <div class="person-details">
-                    <div class="detail-item">
-                        <span class="detail-label">Emotion:</span>
-                        <span class="detail-value ${emotionClass}">${emotion}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Movement:</span>
-                        <span class="detail-value">${movementScore.toFixed(1)}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Duration:</span>
-                        <span class="detail-value">${formatDuration(duration)}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Fall Status:</span>
-                        <span class="detail-value ${fallDetected ? 'negative' : 'positive'}">
-                            ${status.fall_detection?.status || 'normal'}
-                        </span>
-                    </div>
-                </div>
-            </div>
+            <tr style="${rowStyle}">
+                <td style="padding: 8px; font-weight: bold; color: #005461;">${status.person_id}</td>
+                <td style="padding: 8px;"><span class="activity-badge ${activity}">${activity.replace('_', ' ')}</span></td>
+                <td style="padding: 8px;" class="${emotionClass}">${emotion}</td>
+                <td style="padding: 8px;">${movementScore.toFixed(1)}</td>
+                <td style="padding: 8px;">${formatDuration(duration)}</td>
+                <td style="padding: 8px;" class="${fallDetected ? 'negative' : 'positive'}">
+                    ${status.fall_detection?.status || 'normal'}
+                </td>
+            </tr>
         `;
     }).join('');
+
+    tableHTML += `</tbody></table>`;
+    container.innerHTML = tableHTML;
 }
 
 /**
@@ -593,30 +615,47 @@ function updateSummaryCounts(statuses) {
 function addAlert(alert) {
     const container = document.getElementById('alerts-list');
     
-    // Remove empty state if present
-    const emptyState = container.querySelector('.empty-state');
-    if (emptyState) {
-        emptyState.remove();
+    let tbody = container.querySelector('tbody');
+    
+    if (!tbody) {
+        container.innerHTML = `
+            <table class="alerts-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                    <tr style="text-align: left; border-bottom: 2px solid #00b7b5; color: #005461;">
+                        <th style="padding: 8px;">Time</th>
+                        <th style="padding: 8px;">Type</th>
+                        <th style="padding: 8px;">Message</th>
+                        <th style="padding: 8px;">Severity</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        `;
+        tbody = container.querySelector('tbody');
     }
     
     const alertIcon = getAlertIcon(alert.type);
     const time = new Date(alert.timestamp * 1000).toLocaleTimeString();
     
-    const alertEl = document.createElement('div');
-    alertEl.className = `alert-item ${alert.severity}`;
-    alertEl.innerHTML = `
-        <div class="alert-icon">${alertIcon}</div>
-        <div class="alert-content">
-            <div class="alert-message">${alert.message}</div>
-            <div class="alert-time">${time}</div>
-        </div>
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = "1px solid #eee";
+    
+    let severityStyle = "";
+    if (alert.severity === 'critical') severityStyle = "color: #dc2626; font-weight: bold;";
+    else if (alert.severity === 'high') severityStyle = "color: #d97706; font-weight: bold;";
+    
+    tr.innerHTML = `
+        <td style="padding: 8px; color: #5a9ea8;">${time}</td>
+        <td style="padding: 8px; text-transform: capitalize;">${alertIcon} ${alert.type.replace('_', ' ')}</td>
+        <td style="padding: 8px;">${alert.message}</td>
+        <td style="padding: 8px; text-transform: uppercase; ${severityStyle}">${alert.severity}</td>
     `;
     
-    container.insertBefore(alertEl, container.firstChild);
+    tbody.insertBefore(tr, tbody.firstChild);
     
     // Limit alerts displayed
-    while (container.children.length > 20) {
-        container.removeChild(container.lastChild);
+    while (tbody.children.length > 20) {
+        tbody.removeChild(tbody.lastChild);
     }
 }
 

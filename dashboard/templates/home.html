@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elderly Care AI Monitor - Home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <!-- ╔══════════════════════════════════════════╗ -->
+    <!-- ║  TIER 1 — PROJECT TITLE BAR             ║ -->
+    <!-- ╚══════════════════════════════════════════╝ -->
+    <div class="title-bar">
+        <div class="title-bar-inner">
+            <div class="title-brand">
+                <div class="title-icon">🏥</div>
+                <div class="title-text">
+                    <h1 class="title-main">Elderly Care AI Monitor</h1>
+                    <p class="title-sub">Real-time Activity · Fall Detection · Emotion Recognition · Smart Alerts</p>
+                </div>
+            </div>
+            <div class="title-meta">
+                <div class="title-badge">🤖 AI Powered</div>
+                <div class="title-badge">📡 Live Stream</div>
+                <div class="title-badge">🔒 Secure</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ╔══════════════════════════════════════════╗ -->
+    <!-- ║  TIER 2 — HORIZONTAL NAV BAR            ║ -->
+    <!-- ╚══════════════════════════════════════════╝ -->
+    <nav class="topnav">
+        <div class="topnav-inner">
+            <ul class="topnav-links">
+                <li><a class="nav-link active" href="{{ url_for('home') }}">
+                    <span class="nav-icon">ℹ️</span> Home
+                </a></li>
+                <li><a class="nav-link" href="{{ url_for('index') }}">
+                    <span class="nav-icon">📊</span> Dashboard
+                </a></li>
+                <li><a class="nav-link" href="{{ url_for('video_dashboard') }}">
+                    <span class="nav-icon">🎥</span> Video Monitor
+                </a></li>
+                <li><a class="nav-link" href="{{ url_for('audio_dashboard') }}">
+                    <span class="nav-icon">🎙️</span> Audio Monitor
+                </a></li>
+            </ul>
+
+            <div class="topnav-center">
+            </div>
+
+            <div class="topnav-right">
+                <span class="datetime" id="datetime"></span>
+                <a href="{{ url_for('index') }}" class="btn btn-primary" style="text-decoration: none; padding: 10px 16px;">▶ Open Dashboard</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ╔══════════════════════════════════════════╗ -->
+    <!-- ║  TIER 3 — HOME PAGE CONTENT             ║ -->
+    <!-- ╚══════════════════════════════════════════╝ -->
+    <div class="page-content" style="max-width: 1200px; margin: 40px auto; padding: 0 20px;">
+
+        <!-- Feature Strip -->
+        <section class="feature-strip">
+            <div class="feature-card">
+                <div class="feature-icon cam">📹</div>
+                <div class="feature-text">
+                    <h3>Fall Detection</h3>
+                    <p>AI cameras continuously watch for dangerous slips, trips, and falls.</p>
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon inactive">🧓</div>
+                <div class="feature-text">
+                    <h3>Inactivity Monitoring</h3>
+                    <p>Smart alerts when residents remain unusually still for too long.</p>
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon alert">⚡</div>
+                <div class="feature-text">
+                    <h3>Emergency Alerts</h3>
+                    <p>Instant high-priority notifications to caregivers when risk is detected.</p>
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon agent">💬</div>
+                <div class="feature-text">
+                    <h3>Emotion Recognition</h3>
+                    <p>AI voice-style updates that speak clearly to staff and family.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Monitor Flow Overview -->
+        <section class="monitor-flow" id="unified-dashboard-section" style="margin-top: 40px;">
+            <div class="monitor-flow-row">
+                <div class="monitor-box video">
+                    <h3>🎥 Video Monitor</h3>
+                    <ul>
+                        <li>Activity detection</li>
+                        <li>Facial / emotion detection</li>
+                        <li>Number of persons in frame</li>
+                    </ul>
+                </div>
+                <div class="monitor-box audio" id="audio-monitor-section">
+                    <h3>🎙️ Audio Monitor</h3>
+                    <ul>
+                        <li>Voice emotion detection</li>
+                        <li>Keywords for alerts (e.g. "help", "pain")</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="monitor-flow-arrow-row">
+                <div class="flow-arrow">⬇</div>
+                <div class="flow-arrow">⬇</div>
+            </div>
+            <div class="monitor-dashboard-box">
+                <h3>📊 Unified Dashboard</h3>
+                <ul>
+                    <li>Activity &amp; expressions updated every 3 minutes</li>
+                    <li>Instant alerts when risk is detected</li>
+                    <li>High-level reminders for caregivers</li>
+                </ul>
+            </div>
+        </section>
+
+    </div><!-- /page-content -->
+
+    <script>
+        // Update datetime
+        setInterval(() => {
+            const el = document.getElementById('datetime');
+            if (el) el.textContent = new Date().toLocaleString();
+        }, 1000);
+        
+        // Initial call
+        const el = document.getElementById('datetime');
+        if (el) el.textContent = new Date().toLocaleString();
+    </script>
+</body>
+</html>
