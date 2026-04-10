@@ -11,14 +11,16 @@ The following diagram illustrates the high-level architecture of the system:
 ```mermaid
 graph TD
     subgraph "Input Layer"
-        Camera["📹 Laptop/External Camera"]
+        Camera["📹 Video Camera"]
+        Mic["🎤 Microphone"]
     end
 
     subgraph "AI Processing Engine (Python)"
         YOLO["🧠 YOLOv8 Pose Estimation"]
         Activity["🏃 Activity Classifier"]
         Fall["🚨 Fall Detection Logic"]
-        Emotion["😊 FER Emotion Engine"]
+        V_Emo["😊 Video Emotion Engine"]
+        A_AI["🔊 Audio Emotion & Keyword Detection"]
     end
 
     subgraph "Backend Server (Flask)"
@@ -38,13 +40,16 @@ graph TD
     end
 
     Camera --> YOLO
+    Mic --> A_AI
+    
     YOLO --> Activity
     YOLO --> Fall
-    YOLO --> Emotion
+    YOLO --> V_Emo
     
     Activity --> Socket
     Fall --> Socket
-    Emotion --> Socket
+    V_Emo --> Socket
+    A_AI --> Socket
     
     Socket --> DB_S
     DB_S --> Mongo
@@ -57,17 +62,19 @@ graph TD
 
 ## 🔄 Project Operational Flow
 
-1.  **Ingestion**: The system captures real-time video frames from the camera.
+1.  **Ingestion**: 
+    *   **Video**: The system captures real-time video frames.
+    *   **Audio**: The system captures ambient audio via the microphone.
 2.  **Detection**:
     *   **YOLOv8** extracts human pose skeletons (keypoints).
-    *   **Activity Classifier** uses joint angles and movement scores to detect if the person is Sitting, Standing, Walking, or Lying Down.
-    *   **Fall Detector** monitors the vertical velocity and bounding box ratio to trigger alerts on sudden impacts.
-    *   **Emotion Engine** analyzes facial expressions to track emotional well-being.
+    *   **Activity Classifier** detects if the person is Sitting, Standing, Walking, or Lying Down.
+    *   **Fall Detector** monitors for rapid impacts or position changes.
+    *   **Video Emotion Engine** analyzes facial expressions.
+    *   **Audio Processor** detects emotional tones in voice (e.g., distress, anger) and listens for specific keywords like "Help!", "Fall!", or "Pain!".
 3.  **Real-time Streaming**:
-    *   Annotated frames are streamed to the browser via Flask's multipart response.
-    *   Status updates (activity/emotion) are emitted via **WebSockets (Socket.io)** for zero-latency dashboard updates.
+    *   Annotated video and audio status updates are emitted via **WebSockets (Socket.io)** for zero-latency dashboard updates.
 4.  **Persistence**:
-    *   The **Database Service** asynchronously batches and stores activity logs, emotion history, and alerts into **MongoDB**.
+    *   The **Database Service** asynchronously batches and stores all multi-modal data (Activity, Emotion, Audio alerts) into **MongoDB**.
 5.  **Analytics & Management**:
     *   The Dashboard fetches historical data from MongoDB to populate **Events History** and **Patient Information** tables.
     *   **Chart.js** visualizes trends in movement and mood over time.
@@ -80,7 +87,7 @@ graph TD
 *   **MongoDB Integration**: Persistent storage for long-term health monitoring.
 *   **Real-time HUD**: High-Performance Video Overlay showing counts, active alerts, and current status.
 *   **Patient Management**: Tabular display of patient info, room numbers, and emergency contacts.
-*   **Multi-Model AI**: Combines YOLOv8 (Pose) and FER (Emotion) for holistic monitoring.
+*   **Multi-Modal AI**: Combines YOLOv8 (Pose), Video Emotion recognition, and Audio Analysis for holistic monitoring.
 *   **Responsive Alerts**: Auto-generated alerts for falls, extended inactivity, or emotional distress.
 
 ---
