@@ -165,5 +165,4 @@ Open your browser at `http://localhost:5000/dashboard`
 *   **Alert Clear**: Acknowledge and clear current notification queue.
 *   **Timeline Filters**: View activity and emotion stats for different time periods.
 
----
-*Created as part of the Major Project for Elderly Care AI Monitoring.*
+
