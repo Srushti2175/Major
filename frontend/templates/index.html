@@ -12,62 +12,62 @@
 </head>
 <body>
 
-    <!-- ╔══════════════════════════════════════════╗ -->
-    <!-- ║  TIER 1 — PROJECT TITLE BAR             ║ -->
-    <!-- ╚══════════════════════════════════════════╝ -->
+    <!--  -->
+    <!--   TIER 1  PROJECT TITLE BAR              -->
+    <!--  -->
     <div class="title-bar">
         <div class="title-bar-inner">
             <div class="title-brand">
-                <div class="title-icon">🏥</div>
+                <div class="title-icon"></div>
                 <div class="title-text">
                     <h1 class="title-main">Elderly Care AI Monitor</h1>
-                    <p class="title-sub">Real-time Activity · Fall Detection · Emotion Recognition · Smart Alerts</p>
+                    <p class="title-sub">Real-time Activity  Fall Detection  Emotion Recognition  Smart Alerts</p>
                 </div>
             </div>
             <div class="title-meta">
-                <div class="title-badge">🤖 AI Powered</div>
-                <div class="title-badge">📡 Live Stream</div>
-                <div class="title-badge">🔒 Secure</div>
+                <div class="title-badge"> AI Powered</div>
+                <div class="title-badge"> Live Stream</div>
+                <div class="title-badge"> Secure</div>
             </div>
         </div>
     </div>
 
-    <!-- ╔══════════════════════════════════════════╗ -->
-    <!-- ║  TIER 2 — HORIZONTAL NAV BAR            ║ -->
-    <!-- ╚══════════════════════════════════════════╝ -->
+    <!--  -->
+    <!--   TIER 2  HORIZONTAL NAV BAR             -->
+    <!--  -->
     <nav class="topnav">
         <div class="topnav-inner">
             <ul class="topnav-links">
                 <li><a class="nav-link" href="{{ url_for('home') }}">
-                    <span class="nav-icon">ℹ️</span> Home
+                    <span class="nav-icon"></span> Home
                 </a></li>
                 <li><a class="nav-link active" href="{{ url_for('index') }}">
-                    <span class="nav-icon">📊</span> Dashboard
+                    <span class="nav-icon"></span> Dashboard
                 </a></li>
                 <li><a class="nav-link" href="{{ url_for('video_dashboard') }}">
-                    <span class="nav-icon">🎥</span> Video Monitor
+                    <span class="nav-icon"></span> Video Monitor
                 </a></li>
                 <li><a class="nav-link" href="{{ url_for('audio_dashboard') }}">
-                    <span class="nav-icon">🎙️</span> Audio Monitor
+                    <span class="nav-icon"></span> Audio Monitor
                 </a></li>
             </ul>
 
             <div class="topnav-center">
-                <span class="status-badge" id="connection-status">⚡ Connecting...</span>
-                <span class="status-badge" id="db-status">🗄️ Database...</span>
+                <span class="status-badge" id="connection-status"> Connecting...</span>
+                <span class="status-badge" id="db-status"> Database...</span>
             </div>
 
             <div class="topnav-right">
                 <span class="datetime" id="datetime"></span>
-                <button class="btn btn-primary" id="start-btn" onclick="startMonitoring()">▶ Start</button>
-                <button class="btn btn-danger" id="stop-btn" onclick="stopMonitoring()" disabled>⏹ Stop</button>
+                <button class="btn btn-primary" id="start-btn" onclick="startMonitoring()"> Start</button>
+                <button class="btn btn-danger" id="stop-btn" onclick="stopMonitoring()" disabled> Stop</button>
             </div>
         </div>
     </nav>
 
-    <!-- ╔══════════════════════════════════════════╗ -->
-    <!-- ║  TIER 3 — MAIN DASHBOARD CONTENT        ║ -->
-    <!-- ╚══════════════════════════════════════════╝ -->
+    <!--  -->
+    <!--   TIER 3  MAIN DASHBOARD CONTENT         -->
+    <!--  -->
     <div class="page-content">
 
         <!-- Informational Sections Extracted to home.html -->
@@ -78,14 +78,14 @@
             <section class="video-section" id="video-monitor-section">
                 <div class="panel">
                     <div class="panel-header">
-                        <h2>📹 Live Monitoring</h2>
+                        <h2> Live Monitoring</h2>
                         <div class="video-controls">
                             <select id="camera-select" onchange="changeCamera()">
-                                <option value="0">📷 Laptop Webcam</option>
+                                <option value="0"> Laptop Webcam</option>
                                 <option value="1">Camera 1 (External)</option>
                                 <option value="2">Camera 2 (External)</option>
                             </select>
-                            <span class="live-indicator" id="live-indicator">● LIVE</span>
+                            <span class="live-indicator" id="live-indicator"> LIVE</span>
                         </div>
                     </div>
                     <div class="video-container" style="display: none;">
@@ -109,7 +109,7 @@
                         <div class="video-hud-bottom" style="display: flex; gap: 10px;">
                             <div class="video-status-pill" id="video-main-emotion-pill">
                                 <span class="pill-label">Emotion</span>
-                                <span class="pill-value" id="video-main-emotion">—</span>
+                                <span class="pill-value" id="video-main-emotion"></span>
                             </div>
                             <div class="video-status-pill danger" id="video-fall-status-pill">
                                 <span class="pill-label">Fall Status</span>
@@ -135,7 +135,7 @@
 
                 <div class="panel" style="margin-top: 20px;">
                     <div class="panel-header">
-                        <h2>👤 Person Status</h2>
+                        <h2> Person Status</h2>
                     </div>
                     <div class="person-cards" id="person-cards">
                         <div class="empty-state"><span>No persons detected</span></div>
@@ -147,7 +147,7 @@
             <section class="status-section">
                 <div class="panel emotion-history-panel">
                     <div class="panel-header">
-                        <h2>😊 Emotion History</h2>
+                        <h2> Emotion History</h2>
                         <button class="btn btn-small" onclick="clearEmotionHistory()">Clear</button>
                     </div>
                     <div class="emotion-history-list" id="emotion-history-list">
@@ -157,7 +157,7 @@
 
                 <div class="panel alerts-panel" style="margin-top: 20px;">
                     <div class="panel-header">
-                        <h2>🚨 Alerts</h2>
+                        <h2> Alerts</h2>
                         <button class="btn btn-small" onclick="clearAlerts()">Clear All</button>
                     </div>
                     <div class="alerts-list" id="alerts-list">
@@ -170,58 +170,109 @@
         <!-- Charts Section -->
         <section class="charts-section">
             <div class="panel chart-panel">
-                <div class="panel-header"><h2>📊 Activity Timeline</h2></div>
+                <div class="panel-header"><h2> Activity Timeline</h2></div>
                 <div class="chart-container"><canvas id="activity-chart"></canvas></div>
             </div>
             <div class="panel chart-panel">
-                <div class="panel-header"><h2>😊 Emotion Analysis</h2></div>
+                <div class="panel-header"><h2> Emotion Analysis</h2></div>
                 <div class="chart-container"><canvas id="emotion-chart"></canvas></div>
             </div>
             <div class="panel chart-panel">
-                <div class="panel-header"><h2>🏃 Movement Score</h2></div>
+                <div class="panel-header"><h2> Movement Score</h2></div>
                 <div class="chart-container"><canvas id="movement-chart"></canvas></div>
+            </div>
+        </section>
+
+        <!-- Patient Management & History Section -->
+        <section class="patient-history-section" style="margin-top: 20px; display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px;">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2> Patient Information</h2>
+                    <button class="btn btn-small" onclick="fetchPatients()"> Refresh</button>
+                </div>
+                <div class="table-container" style="overflow-x: auto;">
+                    <table class="data-table" id="patients-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Age</th>
+                                <th>Gender</th>
+                                <th>Contact</th>
+                                <th>Room</th>
+                                <th>Condition</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="patients-table-body">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <h2> Events History</h2>
+                    <button class="btn btn-small" onclick="fetchHistory()"> Refresh</button>
+                </div>
+                <div class="table-container" style="overflow-x: auto; max-height: 400px;">
+                    <table class="data-table small" id="history-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Type</th>
+                                <th>Event</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
 
         <!-- Summary Stats -->
         <section class="summary-section">
             <div class="summary-card">
-                <div class="summary-icon">🧍</div>
+                <div class="summary-icon"></div>
                 <div class="summary-info">
                     <span class="summary-label">Standing</span>
                     <span class="summary-value" id="standing-count">0</span>
                 </div>
             </div>
             <div class="summary-card">
-                <div class="summary-icon">🪑</div>
+                <div class="summary-icon"></div>
                 <div class="summary-info">
                     <span class="summary-label">Sitting</span>
                     <span class="summary-value" id="sitting-count">0</span>
                 </div>
             </div>
             <div class="summary-card">
-                <div class="summary-icon">🚶</div>
+                <div class="summary-icon"></div>
                 <div class="summary-info">
                     <span class="summary-label">Walking</span>
                     <span class="summary-value" id="walking-count">0</span>
                 </div>
             </div>
             <div class="summary-card">
-                <div class="summary-icon">🛏️</div>
+                <div class="summary-icon"></div>
                 <div class="summary-info">
                     <span class="summary-label">Lying</span>
                     <span class="summary-value" id="lying-count">0</span>
                 </div>
             </div>
             <div class="summary-card warning">
-                <div class="summary-icon">⚠️</div>
+                <div class="summary-icon"></div>
                 <div class="summary-info">
                     <span class="summary-label">Inactive</span>
                     <span class="summary-value" id="inactive-count">0</span>
                 </div>
             </div>
             <div class="summary-card danger">
-                <div class="summary-icon">🚨</div>
+                <div class="summary-icon"></div>
                 <div class="summary-info">
                     <span class="summary-label">Falls</span>
                     <span class="summary-value" id="fall-count">0</span>

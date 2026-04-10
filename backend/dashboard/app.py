@@ -30,7 +30,8 @@ from src.elderly_care_monitor import ElderlyCareMonitor, Alert
 from src.utils import load_config
 from src.database import (
     get_database, close_database, DatabaseService,
-    ActivityRecord, EmotionRecord, AlertRecord, MovementRecord
+    ActivityRecord, EmotionRecord, AlertRecord, MovementRecord,
+    PatientRecord
 )
 
 
@@ -67,8 +68,8 @@ def sanitize_for_json(obj):
 
 # Initialize Flask app
 app = Flask(__name__, 
-            template_folder='templates',
-            static_folder='static')
+            template_folder='../../frontend/templates',
+            static_folder='../../frontend/static')
 app.config['SECRET_KEY'] = 'elderly-care-secret-key'
 
 # Initialize SocketIO for real-time updates
@@ -111,10 +112,10 @@ def init_monitor():
         db_service = get_database(config)
         if db_service.enabled:
             db_service.start_session()
-            print("✅ MongoDB connected and session started")
+            print(" MongoDB connected and session started")
     except Exception as e:
-        print(f"⚠️ MongoDB initialization failed: {e}")
-        print("⚠️ Continuing without database persistence")
+        print(f" MongoDB initialization failed: {e}")
+        print(" Continuing without database persistence")
         db_service = None
     
     # Initialize monitor
@@ -151,7 +152,7 @@ def handle_alert(alert: Alert):
             )
             db_service.store_alert(alert_record)
         except Exception as e:
-            print(f"⚠️ Failed to store alert to MongoDB: {e}")
+            print(f" Failed to store alert to MongoDB: {e}")
     
     # Emit via WebSocket
     socketio.emit('new_alert', alert_data)
@@ -215,7 +216,7 @@ def store_status_to_db(status, frame_num: int):
             db_service.store_movement(movement_record)
             
     except Exception as e:
-        print(f"⚠️ Failed to store status to MongoDB: {e}")
+        print(f" Failed to store status to MongoDB: {e}")
 
 
 def emit_status_update(statuses, frame_num):
@@ -277,14 +278,14 @@ def generate_frames(source=0):
     if isinstance(source, str) and source.isdigit():
         source = int(source)
     
-    print(f"📷 Opening camera source: {source}")
+    print(f" Opening camera source: {source}")
     if sys.platform == 'win32' and source == 0:
         video_capture = cv2.VideoCapture(source, cv2.CAP_DSHOW)
     else:
         video_capture = cv2.VideoCapture(source)
     
     if not video_capture.isOpened():
-        print(f"❌ Could not open camera source: {source}")
+        print(f" Could not open camera source: {source}")
         is_monitoring = False
         return
     
@@ -294,7 +295,7 @@ def generate_frames(source=0):
     video_capture.set(cv2.CAP_PROP_FPS, 30)
     video_capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce latency
     
-    print(f"✅ Camera opened successfully!")
+    print(f" Camera opened successfully!")
     
     frame_num = 0
     start_time = time.time()
@@ -306,7 +307,7 @@ def generate_frames(source=0):
             ret, frame = video_capture.read()
             
             if not ret:
-                print("⚠️ Failed to read frame from camera")
+                print(" Failed to read frame from camera")
                 time.sleep(0.1)
                 continue
             
@@ -334,14 +335,14 @@ def generate_frames(source=0):
             frame_counter = frame_num
     
     except Exception as e:
-        print(f"❌ Error in frame generation: {e}")
+        print(f" Error in frame generation: {e}")
         import traceback
         traceback.print_exc()
     finally:
         is_monitoring = False
         if video_capture:
             video_capture.release()
-            print("📷 Camera released")
+            print(" Camera released")
 
 
 # Routes
@@ -366,7 +367,7 @@ def video_feed():
     except ValueError:
         pass  # Keep as string (file path)
     
-    print(f"🎥 Starting video feed from source: {source}")
+    print(f" Starting video feed from source: {source}")
     
     return Response(
         generate_frames(source),
@@ -408,7 +409,7 @@ def get_alerts():
                         alert['timestamp'] = time.time()
             return jsonify(alerts)
         except Exception as e:
-            print(f"⚠️ Failed to fetch alerts from MongoDB: {e}")
+            print(f" Failed to fetch alerts from MongoDB: {e}")
     
     return jsonify(list(alerts_history))
 
@@ -440,7 +441,7 @@ def get_emotions():
                 result.append(emotion_record)
             return jsonify(result)
         except Exception as e:
-            print(f"⚠️ Failed to fetch emotions from MongoDB: {e}")
+            print(f" Failed to fetch emotions from MongoDB: {e}")
     
     return jsonify([])
 
@@ -482,11 +483,11 @@ def get_activity_history():
             for activity in activities:
                 if '_id' in activity:
                     activity['_id'] = str(activity['_id'])
-            return jsonify(activities)
+            return jsonify(sanitize_for_json(activities))
         except Exception as e:
-            print(f"⚠️ Failed to fetch activities from MongoDB: {e}")
+            print(f"Failed to fetch activities from MongoDB: {e}")
     
-    return jsonify(list(activity_history))
+    return jsonify(sanitize_for_json(list(activity_history)))
 
 
 @app.route('/api/emotion_history')
@@ -508,11 +509,11 @@ def get_emotion_history():
             for emotion in emotions:
                 if '_id' in emotion:
                     emotion['_id'] = str(emotion['_id'])
-            return jsonify(emotions)
+            return jsonify(sanitize_for_json(emotions))
         except Exception as e:
-            print(f"⚠️ Failed to fetch emotions from MongoDB: {e}")
+            print(f"Failed to fetch emotions from MongoDB: {e}")
     
-    return jsonify(list(emotion_history))
+    return jsonify(sanitize_for_json(list(emotion_history)))
 
 
 @app.route('/api/emotion_stats')
@@ -526,7 +527,7 @@ def get_emotion_stats():
             stats = db_service.get_emotion_stats(person_id=person_id, hours=hours)
             return jsonify(sanitize_for_json(stats))
         except Exception as e:
-            print(f"⚠️ Failed to fetch emotion stats from MongoDB: {e}")
+            print(f"Failed to fetch emotion stats from MongoDB: {e}")
     
     return jsonify({})
 
@@ -550,9 +551,9 @@ def get_movements():
             for movement in movements:
                 if '_id' in movement:
                     movement['_id'] = str(movement['_id'])
-            return jsonify(movements)
+            return jsonify(sanitize_for_json(movements))
         except Exception as e:
-            print(f"⚠️ Failed to fetch movements from MongoDB: {e}")
+            print(f"Failed to fetch movements from MongoDB: {e}")
     
     return jsonify([])
 
@@ -565,7 +566,7 @@ def get_daily_report():
             report = db_service.get_daily_report()
             return jsonify(sanitize_for_json(report))
         except Exception as e:
-            print(f"⚠️ Failed to generate daily report: {e}")
+            print(f" Failed to generate daily report: {e}")
     
     return jsonify({})
 
@@ -580,7 +581,7 @@ def get_activity_summary():
             summary = db_service.get_activity_summary(hours=hours)
             return jsonify(sanitize_for_json(summary))
         except Exception as e:
-            print(f"⚠️ Failed to fetch activity summary: {e}")
+            print(f" Failed to fetch activity summary: {e}")
     
     return jsonify({})
 
@@ -623,6 +624,72 @@ def camera_status():
         'source': CAMERA_SOURCE,
         'db_connected': db_service.enabled if db_service else False
     })
+
+
+@app.route('/api/patients')
+def get_patients():
+    """Get all patient info from MongoDB."""
+    if db_service and db_service.enabled:
+        try:
+            patients = db_service.get_patients()
+            # If no patients, add some demo data
+            if not patients:
+                demo_patients = [
+                    PatientRecord(1, "John Doe", 75, "Male", ["Hypertension"], "555-0101", "Room 101"),
+                    PatientRecord(2, "Jane Smith", 82, "Female", ["Arthritis"], "555-0102", "Room 102"),
+                    PatientRecord(3, "Robert Brown", 69, "Male", ["Diabetes"], "555-0103", "Room 103")
+                ]
+                for p in demo_patients:
+                    db_service.store_patient(p)
+                patients = db_service.get_patients()
+            
+            # Sanitize for JSON
+            for p in patients:
+                if '_id' in p:
+                    p['_id'] = str(p['_id'])
+                if 'created_at' in p and hasattr(p['created_at'], 'isoformat'):
+                    p['created_at'] = p['created_at'].isoformat()
+            
+            return jsonify(patients)
+        except Exception as e:
+            print(f" Failed to fetch patients: {e}")
+    
+    return jsonify([])
+
+
+@app.route('/api/history')
+def get_full_history():
+    """Get combined history of activities and alerts."""
+    limit = request.args.get('limit', 50, type=int)
+    results = []
+    
+    if db_service and db_service.enabled:
+        activities = db_service.get_activities(limit=limit)
+        alerts = db_service.get_alerts(limit=limit)
+        
+        for a in activities:
+            results.append({
+                'type': 'activity',
+                'person_id': a.get('person_id'),
+                'event': a.get('activity_type'),
+                'subtext': f"Confidence: {int(a.get('confidence', 0)*100)}%",
+                'timestamp': a.get('timestamp').timestamp() if hasattr(a.get('timestamp'), 'timestamp') else time.time()
+            })
+            
+        for a in alerts:
+            results.append({
+                'type': 'alert',
+                'person_id': a.get('person_id'),
+                'event': a.get('alert_type'),
+                'subtext': a.get('message'),
+                'timestamp': a.get('timestamp').timestamp() if hasattr(a.get('timestamp'), 'timestamp') else time.time()
+            })
+            
+        # Sort by timestamp descending
+        results.sort(key=lambda x: x['timestamp'], reverse=True)
+        return jsonify(results[:limit])
+        
+    return jsonify([])
 
 
 @app.route('/api/config')
@@ -736,9 +803,9 @@ def handle_status_request():
 
 def run_dashboard(host='0.0.0.0', port=5000, debug=False):
     """Run the dashboard server."""
-    print(f"\n🏥 Elderly Care Dashboard starting...")
-    print(f"📍 Open in browser: http://localhost:{port}")
-    print(f"📍 Network access: http://{host}:{port}")
+    print(f"\n Elderly Care Dashboard starting...")
+    print(f" Open in browser: http://localhost:{port}")
+    print(f" Network access: http://{host}:{port}")
     
     init_monitor()
     
@@ -749,7 +816,7 @@ def run_dashboard(host='0.0.0.0', port=5000, debug=False):
         if db_service:
             db_service.end_session()
             close_database()
-            print("📝 Database connection closed")
+            print(" Database connection closed")
 
 
 if __name__ == '__main__':

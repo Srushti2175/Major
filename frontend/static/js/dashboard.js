@@ -45,9 +45,13 @@ document.addEventListener('DOMContentLoaded', () => {
     loadEmotionHistory();
     startSummaryCountdown();
     
+    // Initial fetch for new tables
+    fetchPatients();
+    fetchHistory();
+    
     // Auto-start monitoring with laptop camera after a short delay
     setTimeout(() => {
-        console.log('🎥 Auto-starting webcam monitoring...');
+        console.log(' Auto-starting webcam monitoring...');
         startMonitoring();
     }, 1500);
 });
@@ -200,7 +204,7 @@ function startMonitoring() {
     const cameraSelect = document.getElementById('camera-select');
     const source = cameraSelect.value;
     
-    console.log(`📷 Starting monitoring with camera source: ${source}`);
+    console.log(` Starting monitoring with camera source: ${source}`);
     
     // Update UI
     document.getElementById('start-btn').disabled = true;
@@ -219,7 +223,7 @@ function startMonitoring() {
     videoFeed.src = `/video_feed?source=${source}&t=${Date.now()}`;  // Add timestamp to prevent caching
     
     isMonitoring = true;
-    updateConnectionStatus('🎥 Live', 'monitoring');
+    updateConnectionStatus(' Live', 'monitoring');
     
     // Notify server
     fetch('/api/start', { method: 'POST' })
@@ -232,7 +236,7 @@ function startMonitoring() {
  * Stop monitoring - releases camera
  */
 function stopMonitoring() {
-    console.log('🛑 Stopping monitoring...');
+    console.log(' Stopping monitoring...');
     
     // Update UI
     document.getElementById('start-btn').disabled = false;
@@ -296,7 +300,7 @@ function handleStatusUpdate(data) {
         updateDbStatus();
     }
     
-    // Derive a “primary” person for HUD (first in list)
+    // Derive a primary person for HUD (first in list)
     if (data.statuses && data.statuses.length > 0) {
         const primary = data.statuses[0];
         const activity = primary.activity?.type || primary.activity || 'Idle';
@@ -330,7 +334,7 @@ function handleStatusUpdate(data) {
     } else {
         // Reset HUD when no statuses
         if (hudActivity) hudActivity.textContent = 'Idle';
-        if (hudEmotion) hudEmotion.textContent = '—';
+        if (hudEmotion) hudEmotion.textContent = '';
         if (hudEmotionPill) hudEmotionPill.classList.remove('positive', 'negative', 'danger');
         if (hudFall) hudFall.textContent = 'Normal';
         if (hudFallPill) {
@@ -363,10 +367,10 @@ function updateDbStatus() {
     const dbIndicator = document.getElementById('db-status');
     if (dbIndicator) {
         if (dbConnected) {
-            dbIndicator.textContent = '🗄️ MongoDB Connected';
+            dbIndicator.textContent = ' MongoDB Connected';
             dbIndicator.className = 'status-badge connected';
         } else {
-            dbIndicator.textContent = '⚠️ DB Offline';
+            dbIndicator.textContent = ' DB Offline';
             dbIndicator.className = 'status-badge';
         }
     }
@@ -462,19 +466,19 @@ function renderEmotionHistory() {
  */
 function getEmotionIcon(emotion) {
     const icons = {
-        'happy': '😊',
-        'sad': '😢',
-        'angry': '😠',
-        'fearful': '😨',
-        'fear': '😨',
-        'surprised': '😲',
-        'surprise': '😲',
-        'neutral': '😐',
-        'tired': '😴',
-        'distressed': '😰',
-        'disgust': '🤢'
+        'happy': '',
+        'sad': '',
+        'angry': '',
+        'fearful': '',
+        'fear': '',
+        'surprised': '',
+        'surprise': '',
+        'neutral': '',
+        'tired': '',
+        'distressed': '',
+        'disgust': ''
     };
-    return icons[emotion.toLowerCase()] || '🙂';
+    return icons[emotion.toLowerCase()] || '';
 }
 
 /**
@@ -664,13 +668,13 @@ function addAlert(alert) {
  */
 function getAlertIcon(type) {
     const icons = {
-        'fall_detected': '🚨',
-        'inactivity': '⏰',
-        'distress': '😰',
-        'negative_emotion': '😢',
-        'left_camera_view': '📍'
+        'fall_detected': '',
+        'inactivity': '',
+        'distress': '',
+        'negative_emotion': '',
+        'left_camera_view': ''
     };
-    return icons[type] || '⚠️';
+    return icons[type] || '';
 }
 
 /**
@@ -914,4 +918,79 @@ async function fetchAlerts() {
 
 // Load existing alerts on page load
 fetchAlerts();
+
+
+/**
+ * Fetch patient information from MongoDB and populate table
+ */
+async function fetchPatients() {
+    try {
+        const response = await fetch('/api/patients');
+        const patients = await response.json();
+        
+        const tbody = document.getElementById('patients-table-body');
+        if (!tbody) return;
+        
+        if (!patients || patients.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">No patient records found</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = patients.map(p => `
+            <tr>
+                <td>${p.person_id}</td>
+                <td style="font-weight: 600;">${p.name}</td>
+                <td>${p.age}</td>
+                <td>${p.gender}</td>
+                <td>${p.emergency_contact}</td>
+                <td>${p.room_number}</td>
+                <td><span style="font-size: 0.75rem;">${p.medical_history.join(', ')}</span></td>
+                <td><span class="badge ${p.status}">${p.status}</span></td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Failed to fetch patients:', error);
+    }
+}
+
+/**
+ * Fetch combined history from MongoDB and populate table
+ */
+async function fetchHistory() {
+    try {
+        const response = await fetch('/api/history');
+        const history = await response.json();
+        
+        const tbody = document.getElementById('history-table-body');
+        if (!tbody) return;
+        
+        if (!history || history.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No history logged yet</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = history.slice(0, 15).map(h => {
+            const time = new Date(h.timestamp * 1000).toLocaleTimeString();
+            const typeClass = h.type === 'alert' ? 'history-type-alert' : 'history-type-activity';
+            
+            return `
+                <tr>
+                    <td style="color: #5a9ea8; font-size: 0.75rem;">${time}</td>
+                    <td class="${typeClass}">${h.type}</td>
+                    <td style="font-weight: 600;">${h.event.replace('_', ' ')}</td>
+                    <td style="font-size: 0.75rem; color: #5a9ea8;">${h.subtext}</td>
+                </tr>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Failed to fetch history:', error);
+    }
+}
+
+// Refresh history periodically if monitoring
+setInterval(() => {
+    if (isMonitoring) {
+        fetchHistory();
+    }
+}, 30000); // Every 30 seconds
 

@@ -10,13 +10,13 @@ from src.database import DatabaseService
 print("Testing DatabaseService initialization...")
 try:
     db = DatabaseService()
-    print("✓ DatabaseService initialized")
+    print(" DatabaseService initialized")
     
     print("Testing end_session()...")
     db.end_session()
-    print("✓ end_session() called successfully")
+    print(" end_session() called successfully")
     
 except AttributeError as e:
-    print(f"✗ AttributeError: {e}")
+    print(f" AttributeError: {e}")
 except Exception as e:
-    print(f"✗ Exception: {e}")
+    print(f" Exception: {e}")

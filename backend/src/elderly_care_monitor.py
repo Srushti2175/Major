@@ -284,7 +284,7 @@ class ElderlyCareMonitor:
         reset = '\033[0m'
         color = severity_colors.get(alert.severity, '')
         
-        print(f"\n{color}🚨 ALERT [{alert.severity.upper()}]: {alert.message}{reset}")
+        print(f"\n{color} ALERT [{alert.severity.upper()}]: {alert.message}{reset}")
         
         # Notify callbacks
         for callback in self.alert_callbacks:
@@ -578,7 +578,7 @@ class ElderlyCareMonitor:
         if status.fall_status != 'normal':
             cv2.putText(
                 frame,
-                f"⚠️ {status.fall_status.upper()}",
+                f" {status.fall_status.upper()}",
                 (x1 + 5, y_offset),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.4,
@@ -592,7 +592,7 @@ class ElderlyCareMonitor:
             for alert_msg in status.alerts[:2]:  # Show max 2 alerts
                 cv2.putText(
                     frame,
-                    f"🚨 {alert_msg}",
+                    f" {alert_msg}",
                     (x1 + 5, y_offset),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.4,

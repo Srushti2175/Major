@@ -13,7 +13,14 @@ from dataclasses import dataclass, asdict
 import threading
 import queue
 import time
+import os
 from enum import Enum
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 try:
     from pymongo import MongoClient, DESCENDING, ASCENDING
@@ -23,7 +30,7 @@ try:
     MONGODB_AVAILABLE = True
 except ImportError:
     MONGODB_AVAILABLE = False
-    print("⚠️ pymongo not installed. MongoDB features disabled.")
+    print(" pymongo not installed. MongoDB features disabled.")
 
 
 class CollectionNames(Enum):
@@ -115,6 +122,32 @@ class AlertRecord:
 
 
 @dataclass
+class PatientRecord:
+    """Patient/Elderly person record for MongoDB storage."""
+    person_id: int
+    name: str
+    age: int
+    gender: str
+    medical_history: List[str]
+    emergency_contact: str
+    room_number: str
+    status: str = "active"  # active, inactive
+    
+    def to_dict(self) -> Dict:
+        return {
+            "person_id": self.person_id,
+            "name": self.name,
+            "age": self.age,
+            "gender": self.gender,
+            "medical_history": self.medical_history,
+            "emergency_contact": self.emergency_contact,
+            "room_number": self.room_number,
+            "status": self.status,
+            "created_at": datetime.utcnow()
+        }
+
+
+@dataclass
 class MovementRecord:
     """Movement/change record for real-time tracking."""
     person_id: int
@@ -171,18 +204,21 @@ class DatabaseService:
         
         if not MONGODB_AVAILABLE:
             self.enabled = False
-            print("⚠️ MongoDB is not available. Data will not be persisted.")
+            print(" MongoDB is not available. Data will not be persisted.")
             return
             
         config = config or {}
         db_config = config.get('database', {})
         
-        # Connection settings from config
-        self.connection_string = db_config.get(
-            'connection_string', 
-            'mongodb://localhost:27017/'
+        # Connection settings from environment or config
+        self.connection_string = os.environ.get(
+            'MONGO_URI',
+            db_config.get('connection_string', 'mongodb://localhost:27017/')
         )
-        self.database_name = db_config.get('database_name', 'elderly_care_ai')
+        self.database_name = os.environ.get(
+            'MONGO_DB_NAME',
+            db_config.get('database_name', 'elderly_care_ai')
+        )
         
         # Batch write settings
         self.batch_size = db_config.get('batch_size', 50)
@@ -206,7 +242,7 @@ class DatabaseService:
         self._current_session_id = None
         
         self.enabled = True
-        print(f"✅ MongoDB connected: {self.connection_string}{self.database_name}")
+        print(f" MongoDB connected: {self.connection_string}{self.database_name}")
     
     def _init_connection(self) -> None:
         """Initialize MongoDB connection and create indexes."""
@@ -225,7 +261,7 @@ class DatabaseService:
             self._create_indexes()
             
         except Exception as e:
-            print(f"❌ MongoDB connection failed: {e}")
+            print(f" MongoDB connection failed: {e}")
             self.enabled = False
             raise
     
@@ -276,7 +312,7 @@ class DatabaseService:
         }
         result = self.db[CollectionNames.SESSIONS.value].insert_one(session_doc)
         self._current_session_id = str(result.inserted_id)
-        print(f"📝 Started monitoring session: {self._current_session_id}")
+        print(f" Started monitoring session: {self._current_session_id}")
         return self._current_session_id
     
     def end_session(self) -> None:
@@ -291,7 +327,7 @@ class DatabaseService:
                     }
                 }
             )
-            print(f"📝 Ended monitoring session: {self._current_session_id}")
+            print(f" Ended monitoring session: {self._current_session_id}")
             self._current_session_id = None
     
     def _background_writer(self) -> None:
@@ -301,7 +337,7 @@ class DatabaseService:
                 time.sleep(self.flush_interval)
                 self._flush_queues()
             except Exception as e:
-                print(f"⚠️ Background writer error: {e}")
+                print(f" Background writer error: {e}")
     
     def _flush_queues(self) -> None:
         """Flush all write queues to MongoDB."""
@@ -323,7 +359,7 @@ class DatabaseService:
             try:
                 self.db[collection_name].insert_many(documents, ordered=False)
             except Exception as e:
-                print(f"⚠️ Failed to write to {collection_name}: {e}")
+                print(f" Failed to write to {collection_name}: {e}")
     
     # ==================== Activity Methods ====================
     
@@ -548,6 +584,34 @@ class DatabaseService:
         
         return list(cursor)
     
+    # ==================== Patient Methods ====================
+    
+    def store_patient(self, record: PatientRecord) -> str:
+        """Store or update patient record."""
+        if not self.enabled:
+            return ""
+        
+        # Use person_id as unique identifier
+        result = self.db[CollectionNames.PERSONS.value].update_one(
+            {"person_id": record.person_id},
+            {"$set": record.to_dict()},
+            upsert=True
+        )
+        return str(result.upserted_id or "")
+    
+    def get_patients(self) -> List[Dict]:
+        """Get all patient info."""
+        if not self.enabled:
+            return []
+        cursor = self.db[CollectionNames.PERSONS.value].find().sort("name", ASCENDING)
+        return list(cursor)
+    
+    def get_patient(self, person_id: int) -> Optional[Dict]:
+        """Get patient by ID."""
+        if not self.enabled:
+            return None
+        return self.db[CollectionNames.PERSONS.value].find_one({"person_id": person_id})
+
     # ==================== Aggregation Methods ====================
     
     def get_activity_summary(self, hours: int = 24) -> Dict:
@@ -623,7 +687,7 @@ class DatabaseService:
         if self.enabled:
             self._flush_queues()
             self.client.close()
-            print("📝 MongoDB connection closed")
+            print(" MongoDB connection closed")
     
     def clear_all_data(self) -> None:
         """Clear all data (for testing purposes)."""
@@ -631,7 +695,7 @@ class DatabaseService:
             return
         for collection in CollectionNames:
             self.db[collection.value].delete_many({})
-        print("⚠️ All data cleared from MongoDB")
+        print(" All data cleared from MongoDB")
 
 
 # Singleton instance

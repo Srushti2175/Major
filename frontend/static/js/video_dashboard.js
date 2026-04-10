@@ -77,10 +77,10 @@ function updateDbStatus() {
     if (!dbIndicator) return;
 
     if (dbConnected) {
-        dbIndicator.textContent = '🗄️ MongoDB Connected';
+        dbIndicator.textContent = ' MongoDB Connected';
         dbIndicator.className = 'status-badge connected';
     } else {
-        dbIndicator.textContent = '⚠️ DB Offline';
+        dbIndicator.textContent = ' DB Offline';
         dbIndicator.className = 'status-badge';
     }
 }
@@ -105,7 +105,7 @@ function startMonitoring() {
     }
 
     isMonitoring = true;
-    updateConnectionStatus('🎥 Live', 'monitoring');
+    updateConnectionStatus(' Live', 'monitoring');
 
     fetch('/api/start', { method: 'POST' }).catch(() => {});
 }
@@ -190,7 +190,7 @@ function handleStatusUpdate(data) {
         }
     } else {
         if (hudActivity) hudActivity.textContent = 'Idle';
-        if (hudEmotion) hudEmotion.textContent = '—';
+        if (hudEmotion) hudEmotion.textContent = '';
         if (hudEmotionPill) hudEmotionPill.classList.remove('positive', 'negative', 'danger');
         if (hudFall) hudFall.textContent = 'Normal';
         if (hudFallPill) {
@@ -217,8 +217,8 @@ async function loadCapturedMovements() {
 
         // Sort by timestamp ascending for chart
         data.sort((a, b) => {
-            const ta = a.timestamp || 0;
-            const tb = b.timestamp || 0;
+            const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+            const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
             return ta - tb;
         });
 
@@ -243,8 +243,8 @@ function renderCapturedEventsList() {
         .slice()
         .reverse()
         .map(m => {
-            const t = (m.timestamp && typeof m.timestamp === 'number')
-                ? new Date(m.timestamp * 1000).toLocaleTimeString()
+            const t = m.timestamp
+                ? new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'})
                 : '';
             const person = m.person_id ?? m.personId ?? '-';
             const activity = m.activity || 'unknown';
@@ -254,13 +254,13 @@ function renderCapturedEventsList() {
 
             return `
                 <div class="alert-item ${severityClass}">
-                    <div class="alert-icon">🎞️</div>
+                    <div class="alert-icon"></div>
                     <div class="alert-content">
                         <div class="alert-message">
-                            Person ${person} • ${activity.replace('_', ' ')} • ${emotion}
+                            Person ${person}  ${activity.replace('_', ' ')}  ${emotion}
                         </div>
                         <div class="alert-time">
-                            Movement score: ${movementScore.toFixed(1)} • ${t}
+                            Movement score: ${movementScore.toFixed(1)}  ${t}
                         </div>
                     </div>
                 </div>

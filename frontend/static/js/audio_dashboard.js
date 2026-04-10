@@ -76,10 +76,10 @@ function renderAudioStatus(data) {
         const item = document.createElement('div');
         item.className = 'alert-item ' + (data.needs_attention ? 'high' : 'low');
         item.innerHTML = `
-            <div class="alert-icon">🎧</div>
+            <div class="alert-icon"></div>
             <div class="alert-content">
                 <div class="alert-message">
-                    Emotion: ${(data.emotion || 'unknown')} • Level: ${(data.alert_level || 'normal')}
+                    Emotion: ${(data.emotion || 'unknown')}  Level: ${(data.alert_level || 'normal')}
                 </div>
                 <div class="alert-time">${time}</div>
             </div>

@@ -59,13 +59,13 @@ def main():
     args = parser.parse_args()
     
     print("""
-╔══════════════════════════════════════════════════════════════════════╗
-║                                                                      ║
-║     🏥 ELDERLY CARE AI DASHBOARD 🏥                                  ║
-║                                                                      ║
-║     Starting Web Dashboard...                                        ║
-║                                                                      ║
-╚══════════════════════════════════════════════════════════════════════╝
+
+                                                                      
+      ELDERLY CARE AI DASHBOARD                                   
+                                                                      
+     Starting Web Dashboard...                                        
+                                                                      
+
     """)
     
     # Open browser automatically

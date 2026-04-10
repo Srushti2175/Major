@@ -13,19 +13,19 @@ def test_monitor():
     print("Testing ElderlyCareMonitor initialization...")
     try:
         monitor = ElderlyCareMonitor()
-        print("✓ Monitor initialized successfully")
+        print(" Monitor initialized successfully")
         
         # Create a dummy frame (black image)
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         
         print("Testing process_frame...")
         annotated, statuses = monitor.process_frame(frame)
-        print(f"✓ process_frame executed. Statuses: {len(statuses)}")
+        print(f" process_frame executed. Statuses: {len(statuses)}")
         
-        print("✓ Validation passed!")
+        print(" Validation passed!")
         
     except Exception as e:
-        print(f"✗ Tests failed: {e}")
+        print(f" Tests failed: {e}")
         import traceback
         traceback.print_exc()
 

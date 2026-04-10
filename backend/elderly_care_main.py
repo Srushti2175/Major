@@ -26,18 +26,18 @@ from src.utils import load_config, setup_output_dirs, generate_output_filename
 def print_banner():
     """Print application banner."""
     banner = """
-╔══════════════════════════════════════════════════════════════════════╗
-║                                                                      ║
-║     🏥 ELDERLY CARE AI MONITORING SYSTEM 🏥                          ║
-║                                                                      ║
-║     Features:                                                        ║
-║     ✓ Real-time Activity Detection                                   ║
-║     ✓ Fall Detection with Alerts                                     ║
-║     ✓ Emotion Recognition                                            ║
-║     ✓ Inactivity Monitoring                                          ║
-║     ✓ Comprehensive Logging                                          ║
-║                                                                      ║
-╚══════════════════════════════════════════════════════════════════════╝
+
+                                                                      
+      ELDERLY CARE AI MONITORING SYSTEM                           
+                                                                      
+     Features:                                                        
+      Real-time Activity Detection                                   
+      Fall Detection with Alerts                                     
+      Emotion Recognition                                            
+      Inactivity Monitoring                                          
+      Comprehensive Logging                                          
+                                                                      
+
     """
     print(banner)
 
@@ -71,7 +71,7 @@ def alert_callback(alert: Alert):
 
 def run_live_monitoring(args, config):
     """Run live webcam monitoring."""
-    print("\n🎥 Starting Live Monitoring...")
+    print("\n Starting Live Monitoring...")
     print("Press 'Q' or 'ESC' to stop\n")
     
     # Initialize monitor
@@ -85,7 +85,7 @@ def run_live_monitoring(args, config):
     if args.save:
         output_filename = generate_output_filename("elderly_care_live", "mp4")
         output_path = str(output_dirs['video'] / output_filename)
-        print(f"📁 Output will be saved to: {output_path}")
+        print(f" Output will be saved to: {output_path}")
     
     # Run monitoring
     frame_count = 0
@@ -102,7 +102,7 @@ def run_live_monitoring(args, config):
             
             # Print status every 60 frames
             if frame_num % 60 == 0 and statuses:
-                print(f"\n📊 Frame {frame_num} Status:")
+                print(f"\n Frame {frame_num} Status:")
                 for status in statuses:
                     print(f"   Person {status.person_id}: "
                           f"{status.activity.upper()} | "
@@ -110,13 +110,13 @@ def run_live_monitoring(args, config):
                           f"Movement: {status.movement_score:.1f}")
     
     except KeyboardInterrupt:
-        print("\n\n⚠️ Monitoring stopped by user")
+        print("\n\n Monitoring stopped by user")
     
     finally:
         # Print summary
         summary = monitor.get_monitoring_summary()
         print("\n" + "="*60)
-        print("📈 MONITORING SESSION SUMMARY")
+        print(" MONITORING SESSION SUMMARY")
         print("="*60)
         print(f"   Frames processed: {frame_count}")
         print(f"   Total detections: {total_detections}")
@@ -135,10 +135,10 @@ def run_video_analysis(args, config):
     video_path = Path(args.video_path)
     
     if not video_path.exists():
-        print(f"❌ Error: Video file not found: {video_path}")
+        print(f" Error: Video file not found: {video_path}")
         sys.exit(1)
     
-    print(f"\n🎬 Analyzing Video: {video_path}")
+    print(f"\n Analyzing Video: {video_path}")
     print("Press 'Q' or 'ESC' to stop\n")
     
     # Initialize monitor
@@ -152,7 +152,7 @@ def run_video_analysis(args, config):
     if not args.no_save:
         output_filename = f"analyzed_{video_path.stem}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
         output_path = str(output_dirs['video'] / output_filename)
-        print(f"📁 Output will be saved to: {output_path}")
+        print(f" Output will be saved to: {output_path}")
     
     # Run analysis
     frame_count = 0
@@ -174,13 +174,13 @@ def run_video_analysis(args, config):
                 print(f"   Processed: {frame_num} frames")
     
     except KeyboardInterrupt:
-        print("\n\n⚠️ Analysis stopped by user")
+        print("\n\n Analysis stopped by user")
     
     finally:
         # Print summary
         summary = monitor.get_monitoring_summary()
         print("\n" + "="*60)
-        print("📈 VIDEO ANALYSIS SUMMARY")
+        print(" VIDEO ANALYSIS SUMMARY")
         print("="*60)
         print(f"   Video: {video_path.name}")
         print(f"   Frames processed: {frame_count}")
@@ -245,7 +245,7 @@ def main():
     
     if args.mode is None:
         parser.print_help()
-        print("\n⚠️  Please specify a mode: live or video")
+        print("\n  Please specify a mode: live or video")
         print("\nExamples:")
         print("  python elderly_care_main.py live")
         print("  python elderly_care_main.py live --camera 1 --save")

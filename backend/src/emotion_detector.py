@@ -53,9 +53,9 @@ DEEPFACE_AVAILABLE = False
 try:
     from deepface import DeepFace
     DEEPFACE_AVAILABLE = True
-    print("✅ DeepFace loaded for accurate emotion detection")
+    print(" DeepFace loaded for accurate emotion detection")
 except ImportError:
-    print("⚠️ DeepFace not installed. Install with: pip install deepface")
+    print(" DeepFace not installed. Install with: pip install deepface")
 
 
 class EmotionDetector:
@@ -124,9 +124,9 @@ class EmotionDetector:
         # DeepFace status
         self.deepface_available = DEEPFACE_AVAILABLE
         if self.deepface_available:
-            print(f"🎭 Emotion detector initialized with backend: {self.detector_backend}")
+            print(f" Emotion detector initialized with backend: {self.detector_backend}")
         else:
-            print("⚠️ Using fallback emotion detection (less accurate)")
+            print(" Using fallback emotion detection (less accurate)")
     
     def _init_face_detector(self) -> None:
         """Initialize OpenCV face detector as fallback."""

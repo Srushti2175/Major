@@ -67,7 +67,7 @@ Examples:
     
     if args.mode is None:
         parser.print_help()
-        print("\n⚠️  Please specify a mode: live, video, or image")
+        print("\n  Please specify a mode: live, video, or image")
         sys.exit(1)
     
     # Convert args to list for subprocess-style calling
