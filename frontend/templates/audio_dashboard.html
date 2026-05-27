@@ -47,6 +47,9 @@
                 <li><a class="nav-link active" href="{{ url_for('audio_dashboard') }}">
                     <span class="nav-icon"></span> Audio Monitor
                 </a></li>
+                <li><a class="nav-link" href="{{ url_for('testing') }}">
+                    <span class="nav-icon"></span> Testing
+                </a></li>
             </ul>
 
             <div class="topnav-center">
@@ -55,6 +58,8 @@
 
             <div class="topnav-right">
                 <span class="datetime" id="datetime"></span>
+                <button class="btn btn-primary" id="start-btn" onclick="startMonitoring()"> Start</button>
+                <button class="btn btn-danger" id="stop-btn" onclick="stopMonitoring()" disabled> Stop</button>
             </div>
         </div>
     </nav>

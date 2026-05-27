@@ -95,3 +95,18 @@ function renderAudioStatus(data) {
     }
 }
 
+function startMonitoring() {
+    const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    if (startBtn) startBtn.disabled = true;
+    if (stopBtn) stopBtn.disabled = false;
+    fetch('/api/start', { method: 'POST' }).catch(() => {});
+}
+
+function stopMonitoring() {
+    const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    if (startBtn) startBtn.disabled = false;
+    if (stopBtn) stopBtn.disabled = true;
+    fetch('/api/stop', { method: 'POST' }).catch(() => {});
+}

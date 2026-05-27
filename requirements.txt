@@ -19,6 +19,7 @@ tf-keras>=2.15.0            # TensorFlow Keras for DeepFace models
 
 # Database
 pymongo>=4.6.0              # MongoDB driver for Python
+python-dotenv>=1.0.0        # Load environment variables from .env file
 
 # Web Dashboard
 flask>=3.0.0                # Web framework
@@ -41,3 +42,6 @@ matplotlib>=3.7.0           # Plotting and visualization
 # Optional: For notifications (future implementation)
 # twilio>=8.0.0             # SMS alerts
 # sendgrid>=6.0.0           # Email alerts
+
+# Audio Processing
+moviepy>=1.0.3              # Video/Audio extraction

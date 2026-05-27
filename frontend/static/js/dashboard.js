@@ -49,11 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchPatients();
     fetchHistory();
     
-    // Auto-start monitoring with laptop camera after a short delay
-    setTimeout(() => {
-        console.log(' Auto-starting webcam monitoring...');
-        startMonitoring();
-    }, 1500);
+    // Auto-start is disabled for privacy; user must click Start manually.
 });
 
 /**

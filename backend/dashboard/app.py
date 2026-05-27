@@ -15,23 +15,36 @@ from pathlib import Path
 # Add parent directory for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Load environment variables FIRST
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent.parent / '.env'
+    load_dotenv(dotenv_path=env_path)
+    print(f"✓ Loaded environment variables from {env_path}")
+except ImportError:
+    print("⚠ python-dotenv not installed. Install with: pip install python-dotenv")
+except Exception as e:
+    print(f"⚠ Failed to load .env file: {e}")
+
 import cv2
-import json
+import threading
 import time
 import random
-import threading
 import numpy as np
+from pathlib import Path
 from datetime import datetime, timedelta
-from flask import Flask, render_template, Response, jsonify, request
-from flask_socketio import SocketIO, emit
 from collections import deque
+from moviepy import VideoFileClip
+from flask import Flask, render_template, Response, jsonify, request, send_from_directory
+from flask_socketio import SocketIO, emit
+from werkzeug.utils import secure_filename
 
 from src.elderly_care_monitor import ElderlyCareMonitor, Alert
 from src.utils import load_config
 from src.database import (
     get_database, close_database, DatabaseService,
     ActivityRecord, EmotionRecord, AlertRecord, MovementRecord,
-    PatientRecord
+    PatientRecord, VideoRecord
 )
 
 
@@ -71,9 +84,19 @@ app = Flask(__name__,
             template_folder='../../frontend/templates',
             static_folder='../../frontend/static')
 app.config['SECRET_KEY'] = 'elderly-care-secret-key'
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
+app.config['UPLOAD_FOLDER'] = str(Path(__file__).parent.parent / 'uploads')
+
+# Add CORS headers for all responses
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 # Initialize SocketIO for real-time updates
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', max_http_buffer_size=500 * 1024 * 1024)
 
 # Global state
 monitor = None
@@ -772,6 +795,346 @@ def audio_dashboard():
     Shows live audio emotion and keyword-based alerts.
     """
     return render_template('audio_dashboard.html')
+
+
+# ==================== Video Testing Routes ====================
+
+# Upload configuration
+UPLOAD_FOLDER = Path(__file__).parent.parent / 'uploads'
+UPLOAD_FOLDER.mkdir(exist_ok=True)
+ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv', 'webm'}
+
+def allowed_file(filename):
+    """Check if file extension is allowed."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route('/testing')
+def testing():
+    """Video testing page."""
+    return render_template('testing.html')
+
+
+
+@app.route('/api/upload_video', methods=['POST'])
+def upload_video():
+    """Handle video upload."""
+    try:
+        print("Upload request received")
+        
+        if 'video' not in request.files:
+            print("No video in request.files")
+            return jsonify({'success': False, 'error': 'No video file provided'}), 400
+        
+        file = request.files['video']
+        print(f"File received: {file.filename}")
+        
+        if file.filename == '':
+            print("Empty filename")
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            print(f"Invalid file type: {file.filename}")
+            return jsonify({'success': False, 'error': 'Invalid file type. Allowed: mp4, avi, mov, mkv, webm'}), 400
+        
+        # Secure filename
+        original_filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"{timestamp}_{original_filename}"
+        filepath = UPLOAD_FOLDER / filename
+        
+        print(f"Saving to: {filepath}")
+        
+        # Save file
+        file.save(str(filepath))
+        file_size = filepath.stat().st_size
+        
+        print(f"File saved successfully. Size: {file_size} bytes")
+        
+        # Get video duration
+        duration = None
+        try:
+            cap = cv2.VideoCapture(str(filepath))
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+            if fps > 0:
+                duration = frame_count / fps
+            cap.release()
+            print(f"Video duration: {duration}s")
+        except Exception as e:
+            print(f"Warning: Could not get video duration: {e}")
+        
+        # Store in database
+        video_id = None
+        if db_service and db_service.enabled:
+            try:
+                video_record = VideoRecord(
+                    filename=filename,
+                    original_filename=original_filename,
+                    file_size=file_size,
+                    duration=duration,
+                    upload_timestamp=datetime.utcnow(),
+                    status="uploaded"
+                )
+                video_id = db_service.store_video(video_record)
+                print(f"Video record stored in database: {video_id}")
+            except Exception as db_error:
+                print(f"Database storage failed: {db_error}")
+                # Continue anyway - file is uploaded
+        
+        return jsonify({
+            'success': True,
+            'video_id': video_id or 'no_db',
+            'filename': filename,
+            'original_filename': original_filename,
+            'file_size': file_size,
+            'duration': duration
+        })
+            
+    except Exception as e:
+        print(f"Upload error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/videos')
+def get_uploaded_videos():
+    """Get list of uploaded videos."""
+    try:
+        if db_service and db_service.enabled:
+            videos = db_service.get_videos(limit=100)
+            # Convert ObjectId to string
+            for video in videos:
+                if '_id' in video:
+                    video['_id'] = str(video['_id'])
+                # Convert datetime to ISO format
+                if 'upload_timestamp' in video and hasattr(video['upload_timestamp'], 'isoformat'):
+                    video['upload_timestamp'] = video['upload_timestamp'].isoformat()
+                if 'created_at' in video and hasattr(video['created_at'], 'isoformat'):
+                    video['created_at'] = video['created_at'].isoformat()
+            return jsonify(sanitize_for_json(videos))
+        else:
+            # If database not available, scan uploads folder
+            videos = []
+            if UPLOAD_FOLDER.exists():
+                for video_file in UPLOAD_FOLDER.glob('*.*'):
+                    if video_file.suffix.lower() in ['.mp4', '.avi', '.mov', '.mkv', '.webm']:
+                        videos.append({
+                            '_id': video_file.stem,
+                            'filename': video_file.name,
+                            'original_filename': video_file.name,
+                            'file_size': video_file.stat().st_size,
+                            'upload_timestamp': datetime.fromtimestamp(video_file.stat().st_mtime).isoformat(),
+                            'status': 'uploaded',
+                            'duration': None
+                        })
+            return jsonify(videos)
+    except Exception as e:
+        print(f"Error getting videos: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify([]), 200
+
+
+@app.route('/api/analyze_video/<video_id>', methods=['POST'])
+def analyze_video(video_id):
+    """Analyze uploaded video."""
+    global db_service
+    # If the database wasn't connected at startup, try to initialize again
+    if db_service is None or not db_service.enabled:
+        init_monitor()
+        
+    if not db_service or not db_service.enabled:
+        return jsonify({'success': False, 'error': 'Database not available. Please ensure your MongoDB is running locally.'}), 500
+    
+    try:
+        # Get video record
+        video = db_service.get_video(video_id)
+        if not video:
+            return jsonify({'success': False, 'error': 'Video not found'}), 404
+        
+        # Update status to processing
+        db_service.update_video_status(video_id, 'processing')
+        
+        # Start analysis in background thread
+        def analyze():
+            try:
+                filepath = UPLOAD_FOLDER / video['filename']
+                if not filepath.exists():
+                    db_service.update_video_status(video_id, 'failed', {'error': 'File not found'})
+                    return
+                
+                # Initialize monitor if not already done
+                if monitor is None:
+                    init_monitor()
+                
+                # Analyze video and audio
+                cap = cv2.VideoCapture(str(filepath))
+                total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                if fps <= 0:
+                    fps = 30.0
+                
+                # Audio Extraction using MoviePy
+                try:
+                    clip = VideoFileClip(str(filepath))
+                    audio = clip.audio
+                    if audio:
+                        fps_audio = audio.fps
+                        audio_array = audio.to_soundarray()
+                        has_audio = True
+                    else:
+                        has_audio = False
+                        audio_array = None
+                        fps_audio = 44100
+                except Exception as e:
+                    print(f"Failed to extract audio: {e}")
+                    has_audio = False
+                    audio_array = None
+                    fps_audio = 44100
+                
+                activities_count = {}
+                emotions_count = {}
+                alerts_count = 0
+                frame_num = 0
+                
+                last_emit_time = 0
+                emit_interval = 0.1  # Update dashboard every 100ms
+                
+                while cap.isOpened():
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    
+                    timestamp = frame_num / fps
+                    _, statuses = monitor.process_frame(frame, timestamp)
+                    
+                    for status in statuses:
+                        # Count activities
+                        activity = status.activity
+                        activities_count[activity] = activities_count.get(activity, 0) + 1
+                        
+                        # Count emotions
+                        emotion = status.emotion
+                        emotions_count[emotion] = emotions_count.get(emotion, 0) + 1
+                        
+                        # Count alerts
+                        if status.fall_status != 'normal':
+                            alerts_count += 1
+                    
+                    # Audio Analysis for this frame chunk
+                    is_loud = False
+                    rms = 0.0
+                    audio_level = 'normal'
+                    if has_audio and audio_array is not None:
+                        start_idx = int(timestamp * fps_audio)
+                        end_idx = int((timestamp + (1.0 / fps)) * fps_audio)
+                        chunk = audio_array[start_idx:end_idx]
+                        if len(chunk) > 0:
+                            rms = np.sqrt(np.mean(chunk**2))
+                            if rms > 0.15:  # High threshold for loud noise/scream
+                                is_loud = True
+                                audio_level = 'alert'
+                            elif rms > 0.05:
+                                audio_level = 'attention'
+                    
+                    # Combined Alert Logic
+                    for status in statuses:
+                        if status.fall_status != 'normal' and is_loud:
+                            # Trigger a combined critical alert via WebSocket
+                            socketio.emit('alert', {
+                                'type': 'CRITICAL_COMBINED',
+                                'message': f'CRITICAL: Fall detected with Loud Noise (RMS: {rms:.3f}) for person {status.person_id}',
+                                'timestamp': current_time,
+                                'person_id': status.person_id
+                            })
+                        elif is_loud:
+                            # Just loud noise
+                            socketio.emit('alert', {
+                                'type': 'AUDIO_ALERT',
+                                'message': f'ATTENTION: Loud noise detected (RMS: {rms:.3f})',
+                                'timestamp': current_time
+                            })
+                    
+                    # Emit status update so the dashboard shows real-time changes
+                    current_time = time.time()
+                    if current_time - last_emit_time >= emit_interval:
+                        emit_status_update(statuses, frame_num)
+                        last_emit_time = current_time
+                        
+                        # Emit real audio analysis update
+                        if has_audio:
+                            # Try to infer some emotion from volume as a baseline
+                            if is_loud:
+                                guessed_emotion = 'angry' if rms > 0.2 else 'stressed'
+                            else:
+                                guessed_emotion = 'calm'
+                            
+                            socketio.emit('audio_status_update', {
+                                'timestamp': current_time,
+                                'emotion': guessed_emotion,
+                                'emotion_confidence': min(1.0, rms * 5),
+                                'keywords_detected': ['loud_noise'] if is_loud else [],
+                                'alert_level': audio_level,
+                                'needs_attention': audio_level != 'normal',
+                                'rms_volume': float(rms)
+                            })
+                    
+                    frame_num += 1
+                    
+                    # Sleep to simulate real-time playback for the dashboard
+                    time.sleep(1.0 / fps)
+                
+                cap.release()
+                
+                # Store analysis results
+                analysis_results = {
+                    'total_frames': total_frames,
+                    'analyzed_frames': frame_num,
+                    'activities': activities_count,
+                    'emotions': emotions_count,
+                    'alerts_detected': alerts_count,
+                    'analyzed_at': datetime.utcnow().isoformat()
+                }
+                
+                db_service.update_video_status(video_id, 'completed', analysis_results)
+                
+            except Exception as e:
+                db_service.update_video_status(video_id, 'failed', {'error': str(e)})
+
+        
+        # Start analysis thread
+        threading.Thread(target=analyze, daemon=True).start()
+        
+        return jsonify({'success': True, 'message': 'Analysis started'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/video_status/<video_id>')
+def get_video_status(video_id):
+    """Get video analysis status."""
+    if not db_service or not db_service.enabled:
+        return jsonify({'error': 'Database not available'}), 500
+    
+    try:
+        video = db_service.get_video(video_id)
+        if not video:
+            return jsonify({'error': 'Video not found'}), 404
+        
+        # Convert ObjectId and datetime
+        if '_id' in video:
+            video['_id'] = str(video['_id'])
+        if 'upload_timestamp' in video and hasattr(video['upload_timestamp'], 'isoformat'):
+            video['upload_timestamp'] = video['upload_timestamp'].isoformat()
+        if 'created_at' in video and hasattr(video['created_at'], 'isoformat'):
+            video['created_at'] = video['created_at'].isoformat()
+        
+        return jsonify(sanitize_for_json(video))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # WebSocket events

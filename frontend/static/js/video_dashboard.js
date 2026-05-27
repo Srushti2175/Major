@@ -19,10 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateDateTime();
     setInterval(updateDateTime, 1000);
 
-    // Auto-start monitoring after short delay
-    setTimeout(() => {
-        startMonitoring();
-    }, 1500);
+    // Auto-start is disabled for privacy; user must click Start manually.
 
     // Initial load of captured movement/events
     loadCapturedMovements();

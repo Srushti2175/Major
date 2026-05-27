@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Testing - Elderly Care AI Monitor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .upload-section {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .upload-area {
+            border: 2px dashed #00d4ff;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-area:hover {
+            background: #e9ecef;
+            border-color: #00a8cc;
+        }
+        
+        .upload-area.dragover {
+            background: #d4f1f4;
+            border-color: #00a8cc;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            color: #00d4ff;
+            margin-bottom: 15px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .video-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        
+        .video-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .video-info {
+            margin-bottom: 15px;
+        }
+        
+        .video-title {
+            font-weight: 600;
+            color: #003d48;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+        
+        .video-meta {
+            font-size: 13px;
+            color: #666;
+            margin: 4px 0;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        
+        .status-uploaded {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .status-processing {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .status-completed {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+        
+        .status-failed {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+        
+        .analysis-results {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 6px 0;
+        }
+        
+        .result-label {
+            font-weight: 600;
+            color: #003d48;
+        }
+        
+        .result-value {
+            color: #666;
+        }
+        
+        .btn-analyze {
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #00d4ff;
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Title Bar -->
+    <div class="title-bar">
+        <div class="title-bar-inner">
+            <div class="title-brand">
+                <div class="title-icon"></div>
+                <div class="title-text">
+                    <h1 class="title-main">Elderly Care AI Monitor</h1>
+                    <p class="title-sub">Video Testing & Analysis</p>
+                </div>
+            </div>
+            <div class="title-meta">
+                <div class="title-badge">Testing Mode</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Bar -->
+    <nav class="topnav">
+        <div class="topnav-inner">
+            <ul class="topnav-links">
+                <li><a class="nav-link" href="{{ url_for('home') }}">
+                    <span class="nav-icon"></span> Home
+                </a></li>
+                <li><a class="nav-link" href="{{ url_for('index') }}">
+                    <span class="nav-icon"></span> Dashboard
+                </a></li>
+                <li><a class="nav-link" href="{{ url_for('video_dashboard') }}">
+                    <span class="nav-icon"></span> Video Monitor
+                </a></li>
+                <li><a class="nav-link" href="{{ url_for('audio_dashboard') }}">
+                    <span class="nav-icon"></span> Audio Monitor
+                </a></li>
+                <li><a class="nav-link active" href="{{ url_for('testing') }}">
+                    <span class="nav-icon"></span> Testing
+                </a></li>
+            </ul>
+
+            <div class="topnav-right">
+                <span class="datetime" id="datetime"></span>
+                <button class="btn btn-primary" id="start-btn" onclick="startMonitoring()"> Start</button>
+                <button class="btn btn-danger" id="stop-btn" onclick="stopMonitoring()" disabled> Stop</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="page-content" style="max-width: 1400px; margin: 40px auto; padding: 0 20px;">
+        
+        <!-- Upload Section -->
+        <section class="upload-section">
+            <h2 style="margin-bottom: 20px; color: #003d48;">Upload Video for Analysis</h2>
+            
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">VIDEO</div>
+                <h3 style="margin-bottom: 10px;">Drop video file here or click to browse</h3>
+                <p style="color: #666; margin-bottom: 15px;">Supported formats: MP4, AVI, MOV, MKV, WEBM</p>
+                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                    Select Video File
+                </button>
+                <input type="file" id="fileInput" class="file-input" accept="video/*" onchange="handleFileSelect(event)">
+            </div>
+            
+            <div id="uploadProgress" style="display: none; margin-top: 20px;">
+                <p id="uploadStatus">Uploading...</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Videos List -->
+        <section>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="color: #003d48;">Uploaded Videos</h2>
+                <button class="btn btn-secondary" onclick="loadVideos()">Refresh</button>
+            </div>
+            
+            <div id="videoGrid" class="video-grid">
+                <p style="color: #666; text-align: center; grid-column: 1/-1;">Loading videos...</p>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        // Update datetime
+        setInterval(() => {
+            const el = document.getElementById('datetime');
+            if (el) el.textContent = new Date().toLocaleString();
+        }, 1000);
+        document.getElementById('datetime').textContent = new Date().toLocaleString();
+
+        function startMonitoring() {
+            const startBtn = document.getElementById('start-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            if (startBtn) startBtn.disabled = true;
+            if (stopBtn) stopBtn.disabled = false;
+            fetch('/api/start', { method: 'POST' }).catch(() => {});
+        }
+
+        function stopMonitoring() {
+            const startBtn = document.getElementById('start-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            if (startBtn) startBtn.disabled = false;
+            if (stopBtn) stopBtn.disabled = true;
+            fetch('/api/stop', { method: 'POST' }).catch(() => {});
+        }
+
+        // Drag and drop
+        const uploadArea = document.getElementById('uploadArea');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+        
+        uploadArea.addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function handleFile(file) {
+            // Validate file type
+            const validTypes = ['video/mp4', 'video/avi', 'video/quicktime', 'video/x-matroska', 'video/webm'];
+            const validExtensions = ['.mp4', '.avi', '.mov', '.mkv', '.webm'];
+            
+            const fileExt = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+            const isValidType = validTypes.includes(file.type) || validExtensions.includes(fileExt);
+            
+            if (!isValidType) {
+                alert('Invalid file type. Please upload a video file (MP4, AVI, MOV, MKV, WEBM)');
+                return;
+            }
+
+            console.log('Uploading file:', file.name, 'Type:', file.type, 'Size:', file.size);
+
+            // Show progress
+            document.getElementById('uploadProgress').style.display = 'block';
+            document.getElementById('uploadStatus').textContent = 'Uploading ' + file.name + '...';
+            document.getElementById('progressFill').style.width = '0%';
+
+            // Upload file
+            const formData = new FormData();
+            formData.append('video', file);
+
+            const xhr = new XMLHttpRequest();
+            
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total) * 100;
+                    document.getElementById('progressFill').style.width = percent + '%';
+                    console.log('Upload progress:', percent.toFixed(2) + '%');
+                }
+            });
+
+            xhr.addEventListener('load', () => {
+                console.log('Upload complete. Status:', xhr.status);
+                console.log('Response:', xhr.responseText);
+                
+                if (xhr.status === 200) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        console.log('Parsed response:', response);
+                        
+                        if (response.success) {
+                            document.getElementById('uploadStatus').textContent = 'Upload complete!';
+                            document.getElementById('progressFill').style.width = '100%';
+                            setTimeout(() => {
+                                document.getElementById('uploadProgress').style.display = 'none';
+                                document.getElementById('fileInput').value = '';
+                                loadVideos();
+                            }, 2000);
+                        } else {
+                            console.error('Upload failed:', response.error);
+                            alert('Upload failed: ' + (response.error || 'Unknown error'));
+                            document.getElementById('uploadProgress').style.display = 'none';
+                        }
+                    } catch (e) {
+                        console.error('Parse error:', e, 'Response text:', xhr.responseText);
+                        alert('Upload failed: Invalid server response. Check console for details.');
+                        document.getElementById('uploadProgress').style.display = 'none';
+                    }
+                } else {
+                    console.error('HTTP error:', xhr.status, xhr.statusText, xhr.responseText);
+                    alert('Upload failed with status ' + xhr.status + ': ' + xhr.statusText + '. Check console for details.');
+                    document.getElementById('uploadProgress').style.display = 'none';
+                }
+            });
+
+            xhr.addEventListener('error', (e) => {
+                console.error('Network error:', e);
+                console.error('XHR state:', xhr.readyState, 'Status:', xhr.status);
+                alert('Network error. Please check:\n1. Dashboard is running\n2. You are on http://localhost:5000/testing\n3. Check browser console for details');
+                document.getElementById('uploadProgress').style.display = 'none';
+            });
+
+            xhr.addEventListener('abort', () => {
+                console.log('Upload aborted');
+                alert('Upload was cancelled');
+                document.getElementById('uploadProgress').style.display = 'none';
+            });
+
+            console.log('Sending request to /api/upload_video');
+            xhr.open('POST', '/api/upload_video');
+            xhr.send(formData);
+        }
+
+        function loadVideos() {
+            fetch('/api/videos')
+                .then(response => response.json())
+                .then(videos => {
+                    const grid = document.getElementById('videoGrid');
+                    
+                    if (videos.length === 0) {
+                        grid.innerHTML = '<p style="color: #666; text-align: center; grid-column: 1/-1;">No videos uploaded yet. Upload a video to get started!</p>';
+                        return;
+                    }
+
+                    grid.innerHTML = videos.map(video => createVideoCard(video)).join('');
+                })
+                .catch(error => {
+                    console.error('Error loading videos:', error);
+                    document.getElementById('videoGrid').innerHTML = '<p style="color: #d32f2f; text-align: center; grid-column: 1/-1;">Error loading videos. Please refresh the page.</p>';
+                });
+        }
+
+        function createVideoCard(video) {
+            const statusClass = 'status-' + video.status;
+            const statusText = video.status.charAt(0).toUpperCase() + video.status.slice(1);
+            
+            let analysisHtml = '';
+            if (video.status === 'completed' && video.analysis_results) {
+                const results = video.analysis_results;
+                analysisHtml = `
+                    <div class="analysis-results">
+                        <div class="result-row">
+                            <span class="result-label">Frames Analyzed:</span>
+                            <span class="result-value">${results.analyzed_frames || 0}</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">Alerts Detected:</span>
+                            <span class="result-value">${results.alerts_detected || 0}</span>
+                        </div>
+                        ${results.activities ? `
+                        <div class="result-row">
+                            <span class="result-label">Top Activity:</span>
+                            <span class="result-value">${Object.keys(results.activities)[0] || 'N/A'}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            const analyzeButton = video.status === 'uploaded' ? 
+                `<button class="btn btn-primary btn-analyze" onclick="analyzeVideo('${video._id}')">Analyze Video</button>` : '';
+
+            const duration = video.duration ? `${Math.round(video.duration)}s` : 'Unknown';
+            const fileSize = video.file_size ? `${(video.file_size / 1024 / 1024).toFixed(2)} MB` : 'Unknown';
+            const uploadDate = video.upload_timestamp ? new Date(video.upload_timestamp).toLocaleString() : 'Unknown';
+
+            return `
+                <div class="video-card" id="video-${video._id}">
+                    <div class="video-info">
+                        <div class="video-title">${video.original_filename}</div>
+                        <div class="video-meta">Date: ${uploadDate}</div>
+                        <div class="video-meta">Duration: ${duration}</div>
+                        <div class="video-meta">Size: ${fileSize}</div>
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                    </div>
+                    ${analysisHtml}
+                    ${analyzeButton}
+                </div>
+            `;
+        }
+
+        function analyzeVideo(videoId) {
+            const card = document.getElementById('video-' + videoId);
+            const button = card.querySelector('.btn-analyze');
+            
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'Starting analysis...';
+            }
+
+            fetch('/api/analyze_video/' + videoId, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Poll for status updates
+                        pollVideoStatus(videoId);
+                    } else {
+                        alert('Analysis failed: ' + data.error);
+                        if (button) {
+                            button.disabled = false;
+                            button.textContent = 'Analyze Video';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error starting analysis:', error);
+                    alert('Failed to start analysis. Please try again.');
+                    if (button) {
+                        button.disabled = false;
+                        button.textContent = 'Analyze Video';
+                    }
+                });
+        }
+
+        function pollVideoStatus(videoId) {
+            const interval = setInterval(() => {
+                fetch('/api/video_status/' + videoId)
+                    .then(response => response.json())
+                    .then(video => {
+                        if (video.status === 'completed' || video.status === 'failed') {
+                            clearInterval(interval);
+                            loadVideos(); // Refresh the entire list
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error polling status:', error);
+                        clearInterval(interval);
+                    });
+            }, 2000); // Poll every 2 seconds
+        }
+
+        // Load videos on page load
+        loadVideos();
+    </script>
+</body>
+</html>

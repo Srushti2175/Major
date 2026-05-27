@@ -34,7 +34,7 @@ env/
 .cursor/
 
 # Model files (large files - download separately)
-*.pt
+# *.pt  # Commented out - we need yolov8m-pose.pt
 *.pth
 *.onnx
 *.weights
@@ -63,3 +63,5 @@ htmlcov/
 # DeepFace cache
 .deepface/
 
+# Uploaded Videos
+backend/uploads/

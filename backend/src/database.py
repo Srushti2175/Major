@@ -41,6 +41,7 @@ class CollectionNames(Enum):
     PERSONS = "persons"
     SESSIONS = "sessions"
     MOVEMENTS = "movements"
+    VIDEOS = "videos"
 
 
 @dataclass
@@ -143,6 +144,30 @@ class PatientRecord:
             "emergency_contact": self.emergency_contact,
             "room_number": self.room_number,
             "status": self.status,
+            "created_at": datetime.utcnow()
+        }
+
+
+@dataclass
+class VideoRecord:
+    """Video upload record for testing and analysis."""
+    filename: str
+    original_filename: str
+    file_size: int
+    duration: Optional[float]
+    upload_timestamp: datetime
+    status: str = "uploaded"  # uploaded, processing, completed, failed
+    analysis_results: Optional[Dict] = None
+    
+    def to_dict(self) -> Dict:
+        return {
+            "filename": self.filename,
+            "original_filename": self.original_filename,
+            "file_size": self.file_size,
+            "duration": self.duration,
+            "upload_timestamp": self.upload_timestamp,
+            "status": self.status,
+            "analysis_results": self.analysis_results,
             "created_at": datetime.utcnow()
         }
 
@@ -611,6 +636,49 @@ class DatabaseService:
         if not self.enabled:
             return None
         return self.db[CollectionNames.PERSONS.value].find_one({"person_id": person_id})
+    
+    # ==================== Video Methods ====================
+    
+    def store_video(self, record: 'VideoRecord') -> str:
+        """Store video upload record."""
+        if not self.enabled:
+            return ""
+        result = self.db[CollectionNames.VIDEOS.value].insert_one(record.to_dict())
+        return str(result.inserted_id)
+    
+    def get_videos(self, limit: int = 50) -> List[Dict]:
+        """Get all uploaded videos."""
+        if not self.enabled:
+            return []
+        cursor = self.db[CollectionNames.VIDEOS.value].find().sort("upload_timestamp", DESCENDING).limit(limit)
+        return list(cursor)
+    
+    def get_video(self, video_id: str) -> Optional[Dict]:
+        """Get video by ID."""
+        if not self.enabled:
+            return None
+        try:
+            from bson import ObjectId
+            return self.db[CollectionNames.VIDEOS.value].find_one({"_id": ObjectId(video_id)})
+        except:
+            return None
+    
+    def update_video_status(self, video_id: str, status: str, analysis_results: Optional[Dict] = None) -> bool:
+        """Update video processing status."""
+        if not self.enabled:
+            return False
+        try:
+            from bson import ObjectId
+            update_data = {"status": status}
+            if analysis_results:
+                update_data["analysis_results"] = analysis_results
+            result = self.db[CollectionNames.VIDEOS.value].update_one(
+                {"_id": ObjectId(video_id)},
+                {"$set": update_data}
+            )
+            return result.modified_count > 0
+        except:
+            return False
 
     # ==================== Aggregation Methods ====================
     
