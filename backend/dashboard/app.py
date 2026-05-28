@@ -34,13 +34,15 @@ import numpy as np
 from pathlib import Path
 from datetime import datetime, timedelta
 from collections import deque
-from moviepy import VideoFileClip
+from moviepy.editor import VideoFileClip
 from flask import Flask, render_template, Response, jsonify, request, send_from_directory
 from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
 
 from src.elderly_care_monitor import ElderlyCareMonitor, Alert
 from src.utils import load_config
+from src.audio_yamnet import predict_audio_events
+from src.audio_alerts import map_yamnet_to_level
 from src.database import (
     get_database, close_database, DatabaseService,
     ActivityRecord, EmotionRecord, AlertRecord, MovementRecord,
@@ -757,26 +759,71 @@ def db_status():
 @app.route('/api/audio_status')
 def audio_status():
     """
-    Simulated audio monitor backend.
-    This can later be swapped with a real audio pipeline.
+    Real-time audio status endpoint powered by YAMNet (TensorFlow Hub).
+
+    Flow
+    ----
+    1. Capture 1 second of audio from the default microphone.
+    2. Run YAMNet inference → returns the most likely sound-event class.
+    3. Map that class to an alert level (normal / attention / alert).
+    4. Return the result as JSON for the dashboard UI.
     """
-    # Simple rotating demo data to keep UI alive
-    emotions = ['calm', 'happy', 'stressed', 'angry', 'worried']
-    keywords = [
-        'help', 'pain', 'quiet', 'okay', 'doctor',
-        'emergency', 'fall', 'nothing'
-    ]
-    level = random.choice(['normal', 'attention', 'alert'])
-    now = time.time()
-    
-    return jsonify({
-        'timestamp': now,
-        'emotion': random.choice(emotions),
-        'emotion_confidence': round(random.uniform(0.6, 0.98), 2),
-        'keywords_detected': random.sample(keywords, k=2),
-        'alert_level': level,
-        'needs_attention': level != 'normal'
-    })
+    try:
+        import sounddevice as sd
+        from src.audio_yamnet import predict_audio_events
+        from src.audio_alerts import map_yamnet_to_level
+
+        # ---- 1️⃣  Capture a short audio snippet from the mic ----------
+        DURATION = 1.0          # seconds
+        SAMPLE_RATE = 16000     # YAMNet's native rate — avoids resampling
+        audio_chunk = sd.rec(
+            int(DURATION * SAMPLE_RATE),
+            samplerate=SAMPLE_RATE,
+            channels=1,
+            dtype="float32",
+        )
+        sd.wait()               # block until recording finishes
+
+        waveform = audio_chunk.squeeze()   # shape → (16000,)
+
+        # ---- 2️⃣  Run YAMNet inference --------------------------------
+        yamnet_result = predict_audio_events(waveform, sample_rate=SAMPLE_RATE)
+
+        # ---- 3️⃣  Map the top class to an alert level -----------------
+        level = map_yamnet_to_level(yamnet_result["top_class"])
+
+        # ---- 4️⃣  Build the JSON response -----------------------------
+        now = time.time()
+        return jsonify({
+            "timestamp": now,
+            "emotion": yamnet_result["top_class"],
+            "emotion_confidence": yamnet_result["top_score"],
+            "audio_events": yamnet_result.get("all_events", [yamnet_result["top_class"]]),
+            "yamnet_scores": yamnet_result["top_dict"],
+            "alert_level": level,
+            "needs_attention": level != "normal",
+        })
+
+    except ImportError as exc:
+        # Graceful fallback if sounddevice or TF is not installed
+        return jsonify({
+            "timestamp": time.time(),
+            "error": f"Missing dependency: {exc}",
+            "alert_level": "normal",
+            "needs_attention": False,
+        }), 503
+
+    except Exception as exc:
+        # Catch-all so the dashboard never crashes
+        print(f"⚠  audio_status error: {exc}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "timestamp": time.time(),
+            "error": str(exc),
+            "alert_level": "normal",
+            "needs_attention": False,
+        }), 500
 
 
 @app.route('/video_dashboard')
@@ -959,6 +1006,7 @@ def analyze_video(video_id):
         
         # Start analysis in background thread
         def analyze():
+            cap = None
             try:
                 filepath = UPLOAD_FOLDER / video['filename']
                 if not filepath.exists():
@@ -984,10 +1032,12 @@ def analyze_video(video_id):
                         fps_audio = audio.fps
                         audio_array = audio.to_soundarray()
                         has_audio = True
+                        audio.close()
                     else:
                         has_audio = False
                         audio_array = None
                         fps_audio = 44100
+                    clip.close()
                 except Exception as e:
                     print(f"Failed to extract audio: {e}")
                     has_audio = False
@@ -997,6 +1047,7 @@ def analyze_video(video_id):
                 activities_count = {}
                 emotions_count = {}
                 alerts_count = 0
+                alert_reasons = set()
                 frame_num = 0
                 
                 last_emit_time = 0
@@ -1023,37 +1074,47 @@ def analyze_video(video_id):
                         if status.fall_status != 'normal':
                             alerts_count += 1
                     
-                    # Audio Analysis for this frame chunk
-                    is_loud = False
-                    rms = 0.0
+                    # Audio Analysis for this frame chunk (evaluating 1-second chunks every 1 second to save CPU)
                     audio_level = 'normal'
+                    yamnet_label = None
+                    yamnet_score = 0.0
+                    
                     if has_audio and audio_array is not None:
-                        start_idx = int(timestamp * fps_audio)
-                        end_idx = int((timestamp + (1.0 / fps)) * fps_audio)
-                        chunk = audio_array[start_idx:end_idx]
-                        if len(chunk) > 0:
-                            rms = np.sqrt(np.mean(chunk**2))
-                            if rms > 0.15:  # High threshold for loud noise/scream
-                                is_loud = True
-                                audio_level = 'alert'
-                            elif rms > 0.05:
-                                audio_level = 'attention'
+                        # Process audio strictly once per second to prevent heavy TensorFlow slowdowns
+                        if frame_num % int(fps) == 0:
+                            start_idx = int(timestamp * fps_audio)
+                            end_idx = int((timestamp + 1.0) * fps_audio)
+                            chunk = audio_array[start_idx:end_idx]
+                            
+                            if len(chunk) > 0:
+                                try:
+                                    res = predict_audio_events(chunk, sample_rate=int(fps_audio))
+                                    yamnet_label = res["top_class"]
+                                    yamnet_score = res["top_score"]
+                                    audio_level = map_yamnet_to_level(res["top_dict"])
+                                except Exception as e:
+                                    print(f"YAMNet Error: {e}")
+                                    audio_level = 'normal'
                     
                     # Combined Alert Logic
                     for status in statuses:
-                        if status.fall_status != 'normal' and is_loud:
+                        if status.fall_status != 'normal' and audio_level in ['alert', 'critical']:
+                            alert_reasons.add(f"Video: {status.fall_status} + Audio: {yamnet_label}")
                             # Trigger a combined critical alert via WebSocket
                             socketio.emit('alert', {
                                 'type': 'CRITICAL_COMBINED',
-                                'message': f'CRITICAL: Fall detected with Loud Noise (RMS: {rms:.3f}) for person {status.person_id}',
+                                'message': f'CRITICAL: Fall detected with {yamnet_label} (Confidence: {yamnet_score:.2f}) for person {status.person_id}',
                                 'timestamp': current_time,
                                 'person_id': status.person_id
                             })
-                        elif is_loud:
-                            # Just loud noise
+                        elif status.fall_status != 'normal':
+                            alert_reasons.add(f"Video: {status.fall_status}")
+                        elif audio_level == 'alert':
+                            alert_reasons.add(f"Audio: {yamnet_label}")
+                            # Just loud noise/alarms
                             socketio.emit('alert', {
                                 'type': 'AUDIO_ALERT',
-                                'message': f'ATTENTION: Loud noise detected (RMS: {rms:.3f})',
+                                'message': f'ATTENTION: {yamnet_label} detected (Confidence: {yamnet_score:.2f})',
                                 'timestamp': current_time
                             })
                     
@@ -1064,21 +1125,15 @@ def analyze_video(video_id):
                         last_emit_time = current_time
                         
                         # Emit real audio analysis update
-                        if has_audio:
-                            # Try to infer some emotion from volume as a baseline
-                            if is_loud:
-                                guessed_emotion = 'angry' if rms > 0.2 else 'stressed'
-                            else:
-                                guessed_emotion = 'calm'
-                            
+                        if has_audio and yamnet_label is not None:
                             socketio.emit('audio_status_update', {
                                 'timestamp': current_time,
-                                'emotion': guessed_emotion,
-                                'emotion_confidence': min(1.0, rms * 5),
-                                'keywords_detected': ['loud_noise'] if is_loud else [],
+                                'emotion': yamnet_label,
+                                'emotion_confidence': yamnet_score,
+                                'keywords_detected': [yamnet_label],
                                 'alert_level': audio_level,
                                 'needs_attention': audio_level != 'normal',
-                                'rms_volume': float(rms)
+                                'rms_volume': yamnet_score # Pass confidence in place of RMS for dashboard visualization
                             })
                     
                     frame_num += 1
@@ -1095,6 +1150,7 @@ def analyze_video(video_id):
                     'activities': activities_count,
                     'emotions': emotions_count,
                     'alerts_detected': alerts_count,
+                    'alert_reasons': list(alert_reasons),
                     'analyzed_at': datetime.utcnow().isoformat()
                 }
                 
@@ -1102,14 +1158,43 @@ def analyze_video(video_id):
                 
             except Exception as e:
                 db_service.update_video_status(video_id, 'failed', {'error': str(e)})
+            finally:
+                if cap is not None:
+                    cap.release()
 
         
         # Start analysis thread
         threading.Thread(target=analyze, daemon=True).start()
         
         return jsonify({'success': True, 'message': 'Analysis started'})
-        
+
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/video/<video_id>', methods=['DELETE'])
+def delete_video(video_id):
+    """Delete a video and its records."""
+    global db_service
+    if db_service is None or not db_service.enabled:
+        return jsonify({'success': False, 'error': 'Database not available'}), 500
+        
+    try:
+        video = db_service.get_video(video_id)
+        if not video:
+            return jsonify({'success': False, 'error': 'Video not found'}), 404
+            
+        # Delete file
+        filepath = UPLOAD_FOLDER / video['filename']
+        if filepath.exists():
+            filepath.unlink()
+            
+        # Delete record
+        db_service.delete_video(video_id)
+        
+        return jsonify({'success': True, 'message': 'Video deleted successfully'})
+    except Exception as e:
+        print(f"Error deleting video: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

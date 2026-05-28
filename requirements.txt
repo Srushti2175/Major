@@ -1,47 +1,15 @@
-# Elderly Care AI Monitoring System - Dependencies
-# =================================================
-
-# Core ML/DL frameworks
-ultralytics>=8.0.0          # YOLOv8 for pose estimation
-torch>=2.0.0                # PyTorch backend
-torchvision>=0.15.0         # Vision utilities
-
-# Computer Vision
-opencv-python>=4.8.0        # Video/image processing
-
-# Emotion Detection (DeepFace - more accurate than FER)
-deepface>=0.0.79            # Advanced facial analysis with multiple backends
-tf-keras>=2.15.0            # TensorFlow Keras for DeepFace models
-
-# Face Detection Backends for DeepFace (install as needed)
-# retinaface>=0.0.13        # Most accurate face detection (optional)
-# mtcnn>=0.1.1              # MTCNN face detection (optional)
-
-# Database
-pymongo>=4.6.0              # MongoDB driver for Python
-python-dotenv>=1.0.0        # Load environment variables from .env file
-
-# Web Dashboard
-flask>=3.0.0                # Web framework
-flask-socketio>=5.3.0       # WebSocket support
-python-socketio>=5.10.0     # Socket.IO client
-eventlet>=0.33.0            # Async support for Flask-SocketIO
-
-# Configuration & Utilities
-pyyaml>=6.0                 # YAML config parsing
-numpy>=1.24.0               # Numerical operations
-pillow>=10.0.0              # Image handling
-
-# Visualization
-matplotlib>=3.7.0           # Plotting and visualization
-
-# Optional: For advanced features
-# mediapipe>=0.10.0         # Alternative pose estimation
-# supervision>=0.16.0       # Video analytics utilities
-
-# Optional: For notifications (future implementation)
-# twilio>=8.0.0             # SMS alerts
-# sendgrid>=6.0.0           # Email alerts
-
-# Audio Processing
-moviepy>=1.0.3              # Video/Audio extraction
+flask==3.0.3
+flask_socketio==5.3.6
+python-dotenv==1.0.1
+opencv-python==4.9.0.80
+moviepy==1.0.3
+pillow==10.2.0
+tensorflow==2.16.2
+tensorflow-hub==0.16.0
+tf-keras==2.16.0
+ultralytics==8.4.56
+sounddevice==0.4.7
+soundfile==0.12.1
+pymongo==4.8.0
+numpy==1.26.4
+deepface==0.0.100

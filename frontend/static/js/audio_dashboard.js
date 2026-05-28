@@ -79,7 +79,7 @@ function renderAudioStatus(data) {
             <div class="alert-icon"></div>
             <div class="alert-content">
                 <div class="alert-message">
-                    Emotion: ${(data.emotion || 'unknown')}  Level: ${(data.alert_level || 'normal')}
+                    Sound: ${(data.emotion || 'unknown')}  Level: ${(data.alert_level || 'normal')}
                 </div>
                 <div class="alert-time">${time}</div>
             </div>

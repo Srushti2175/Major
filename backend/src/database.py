@@ -680,6 +680,17 @@ class DatabaseService:
         except:
             return False
 
+    def delete_video(self, video_id: str) -> bool:
+        """Delete a video record from the database."""
+        if not self.enabled:
+            return False
+        try:
+            from bson import ObjectId
+            result = self.db[CollectionNames.VIDEOS.value].delete_one({"_id": ObjectId(video_id)})
+            return result.deleted_count > 0
+        except:
+            return False
+
     # ==================== Aggregation Methods ====================
     
     def get_activity_summary(self, hours: int = 24) -> Dict:
