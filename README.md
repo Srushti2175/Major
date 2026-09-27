@@ -8,29 +8,6 @@
 [![MongoDB](https://img.shields.io/badge/MongoDB-4.6%2B-green.svg)](https://www.mongodb.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
----
-
-## 📋 Table of Contents
-
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-- [System Architecture](#-system-architecture)
-- [Technology Stack](#-technology-stack)
-- [How It Works](#-how-it-works)
-- [Installation](#-installation)
-- [Configuration](#-configuration)
-- [Usage](#-usage)
-- [Dashboard Features](#-dashboard-features)
-- [API Documentation](#-api-documentation)
-- [Detection Algorithms](#-detection-algorithms)
-- [Database Schema](#-database-schema)
-- [Performance](#-performance)
-- [Troubleshooting](#-troubleshooting)
-- [Future Enhancements](#-future-enhancements)
-- [Contributing](#-contributing)
-- [License](#-license)
-
----
 
 ## 🎯 Overview
 
